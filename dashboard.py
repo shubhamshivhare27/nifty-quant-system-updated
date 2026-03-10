@@ -26,8 +26,18 @@ from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import os
 
 log = logging.getLogger("dashboard")
+
+# ── Inject Streamlit secrets into os.environ so all modules can read them ─────
+try:
+    for _key in ["GOOGLE_SHEETS_CREDENTIALS", "UPSTOX_TOKEN", "UPSTOX_API_KEY",
+                 "GMAIL_USER", "GMAIL_PASS", "RECIPIENT_EMAIL"]:
+        if _key in st.secrets and _key not in os.environ:
+            os.environ[_key] = str(st.secrets[_key])
+except Exception:
+    pass
 
 # ── Page config ────────────────────────────────────────────────────────────────
 st.set_page_config(
