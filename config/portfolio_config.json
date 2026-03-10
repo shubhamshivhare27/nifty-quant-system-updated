@@ -1,0 +1,11 @@
+{
+  "max_positions": 10,
+  "position_sizing": "equal_weight",
+  "rank_by": "RSI14_weekly",
+  "slippage_pct": 0.2,
+  "brokerage_pct": 0.1,
+  "stcg_tax_pct": 20.0,
+  "ltcg_tax_pct": 12.5,
+  "min_holding_days": 1,
+  "currency": "INR"
+}

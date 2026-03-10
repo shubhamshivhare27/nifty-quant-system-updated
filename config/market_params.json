@@ -1,0 +1,8 @@
+{
+  "risk_free_rate_pct": 7.1,
+  "risk_free_rate_source": "RBI 10-year G-Sec yield",
+  "market_risk_premium_pct": 5.5,
+  "last_updated": "2026-03-01",
+  "update_frequency": "monthly",
+  "update_url": "https://www.rbi.org.in"
+}
