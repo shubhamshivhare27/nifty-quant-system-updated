@@ -129,8 +129,27 @@ def _fetch_via_service_account(worksheet_name: str) -> pd.DataFrame | None:
 
     # ── Step 6: Fetch data ───────────────────────────────────────────────────
     try:
-        data = ws.get_all_records()
-        df = pd.DataFrame(data)
+        # Use get_all_values() to handle duplicate column headers in the sheet
+        all_values = ws.get_all_values()
+        if not all_values:
+            raise RuntimeError("Worksheet is empty.")
+
+        # Build unique headers: duplicate names get _2, _3 suffix
+        raw_headers = all_values[0]
+        seen = {}
+        headers = []
+        for h in raw_headers:
+            h = h.strip()
+            if h in seen:
+                seen[h] += 1
+                headers.append(f"{h}_{seen[h]}")
+            else:
+                seen[h] = 1
+                headers.append(h)
+
+        df = pd.DataFrame(all_values[1:], columns=headers)
+        # Drop completely empty rows
+        df = df[df.apply(lambda r: r.str.strip().ne("").any(), axis=1)].reset_index(drop=True)
         log.info(f"  → {len(df)} rows fetched from '{worksheet_name}'.")
         log.info(f"  Columns: {list(df.columns)}")
         return df
