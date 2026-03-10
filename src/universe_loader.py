@@ -121,7 +121,7 @@ def _fetch_csv_service_account(worksheet_name: str) -> pd.DataFrame | None:
 def fetch_stock_universe() -> pd.DataFrame | None:
     df = _fetch_csv_public(PUBLIC_CSV_URL_STOCKS)
     if df is None:
-        df = _fetch_csv_service_account("Stock Fundamentals")
+        df = _fetch_csv_service_account("Stock Fundamental")
     return df
 
 
