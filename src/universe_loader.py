@@ -69,7 +69,14 @@ def _fetch_via_service_account(worksheet_name: str) -> pd.DataFrame | None:
         import gspread
         from google.oauth2.service_account import Credentials
 
-        creds_json = os.environ.get("GOOGLE_SHEETS_CREDENTIALS")
+        # Try Streamlit secrets first, then environment variable
+        try:
+            import streamlit as st
+            creds_json = st.secrets.get("GOOGLE_SHEETS_CREDENTIALS")
+        except Exception:
+            creds_json = None
+        if not creds_json:
+            creds_json = os.environ.get("GOOGLE_SHEETS_CREDENTIALS")
         if not creds_json:
             log.error("GOOGLE_SHEETS_CREDENTIALS env var not set.")
             return None
