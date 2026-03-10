@@ -2,17 +2,7 @@
 universe_loader.py
 ------------------
 Fetches the user-maintained Google Sheet master list.
-- Primary:  public CSV export (no auth required)
-- Fallback: Google Sheets API v4 via service account (gspread)
-
-Saves:
-  data/stock_universe.csv       — from "Stock Fundamentals" worksheet
-  data/etf_universe.csv         — from "Stock Summary" worksheet
-  data/stock_universe_prev.csv  — previous run's copy (for change detection)
-  data/universe_changes.csv     — additions / removals / TA-status changes
-
-ETF master list for Strategy 5 is hard-coded here and merged with
-whatever is in the "Stock Summary" worksheet.
+Updated to match actual Google Sheet column names.
 """
 
 import os
@@ -24,7 +14,6 @@ import pandas as pd
 from datetime import datetime
 from pathlib import Path
 
-# ── logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
@@ -32,10 +21,9 @@ logging.basicConfig(
 )
 log = logging.getLogger("universe_loader")
 
-# ── constants ─────────────────────────────────────────────────────────────────
-SHEET_ID = "1jTlHPIMOiXcCIFPlJcUS2NjtXh6iBdGBarO26glnFAk"
-GID_STOCKS = "1666453875"       # "Stock Fundamentals"
-GID_ETFS   = "0"                # "Stock Summary" (default gid — adjust if different)
+SHEET_ID   = "1jTlHPIMOiXcCIFPlJcUS2NjtXh6iBdGBarO26glnFAk"
+GID_STOCKS = "1666453875"
+GID_ETFS   = "0"
 
 PUBLIC_CSV_URL_STOCKS = (
     f"https://docs.google.com/spreadsheets/d/{SHEET_ID}"
@@ -48,34 +36,24 @@ PUBLIC_CSV_URL_ETFS = (
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
-# Strategy 5 — fixed ETF master list (all listed on NSE, fetched via Upstox)
-STRATEGY5_ETF_MASTER = [
-    {"Company Name": "Nifty 50 ETF (Nippon)",          "Ticker (NSE)": "NIFTYBEES",  "Category": "Core ETF"},
-    {"Company Name": "Nifty Next 50 ETF (Nippon)",     "Ticker (NSE)": "JUNIORBEES", "Category": "Core ETF"},
-    {"Company Name": "SBI Nifty 50 ETF",               "Ticker (NSE)": "SETFNIF50",  "Category": "Core ETF"},
-    {"Company Name": "Nippon India Nifty ETF",         "Ticker (NSE)": "NIPPONNIFTY","Category": "Core ETF"},
-    {"Company Name": "Motilal Oswal Nasdaq 100 ETF",   "Ticker (NSE)": "MOM100",     "Category": "International ETF"},
-    {"Company Name": "Motilal Oswal S&P 500 ETF",      "Ticker (NSE)": "MAFANG",     "Category": "International ETF"},
-    {"Company Name": "Nifty Bank ETF (ICICI)",         "Ticker (NSE)": "BANKBEES",   "Category": "Sector ETF"},
-    {"Company Name": "Nifty Auto ETF",                 "Ticker (NSE)": "AUTOBEES",   "Category": "Sector ETF"},
-    {"Company Name": "Nifty Realty ETF (Nippon)",      "Ticker (NSE)": "NIFTYREAL",  "Category": "Sector ETF"},
-    {"Company Name": "Nippon Nifty Infrastructure ETF","Ticker (NSE)": "INFRABEES",  "Category": "Sector ETF"},
-    {"Company Name": "Global X AI & Technology ETF",   "Ticker (NSE)": "MOGLIXETF",  "Category": "Thematic ETF"},
-    {"Company Name": "First Trust Nasdaq AI ETF",      "Ticker (NSE)": "AIIETF",     "Category": "Thematic ETF"},
-    {"Company Name": "Global X Data Center ETF",       "Ticker (NSE)": "DCIETF",     "Category": "Thematic ETF"},
-]
+# ── Actual column name in your Google Sheet for ticker symbols ────────────────
+TICKER_COL = "Ticker symbols"   # ← matches your sheet's column R header
 
-# Columns expected from "Stock Fundamentals" worksheet
-STOCK_COLUMNS = [
-    "S.No.", "Company Name", "TA - SSF", "TA - MACD", "TA - RSI", "TA Status",
-    "CMP (Rs.)", "P/E", "Market Cap (Rs. Cr.)", "Div Yield %",
-    "NP Qtr (Rs. Cr.)", "Qtr Profit Var %", "Sales Qtr (Rs. Cr.)", "Qtr Sales Var %",
-    "ROCE %", "EPS Ann (Rs.)", "EPS Var 5Yrs %", "Ticker (NSE)",
-    "Rev Analysts", "Rev Avg Est (INR Mn)", "Rev Growth %",
-    "EPS Analysts", "EPS Avg Est", "EPS Growth %",
-    "Price High", "High % Change", "Price Avg", "Avg % Change",
-    "Price Low", "Low % Change", "Price Analysts",
-    "F-Score", "Z-Score", "M-Score",
+# Strategy 5 — fixed ETF master list
+STRATEGY5_ETF_MASTER = [
+    {"Company Name": "Nifty 50 ETF (Nippon)",           "Ticker symbols": "NIFTYBEES",   "Category": "Core ETF"},
+    {"Company Name": "Nifty Next 50 ETF (Nippon)",      "Ticker symbols": "JUNIORBEES",  "Category": "Core ETF"},
+    {"Company Name": "SBI Nifty 50 ETF",                "Ticker symbols": "SETFNIF50",   "Category": "Core ETF"},
+    {"Company Name": "Nippon India Nifty ETF",          "Ticker symbols": "NIPPONNIFTY", "Category": "Core ETF"},
+    {"Company Name": "Motilal Oswal Nasdaq 100 ETF",    "Ticker symbols": "MOM100",      "Category": "International ETF"},
+    {"Company Name": "Motilal Oswal S&P 500 ETF",       "Ticker symbols": "MAFANG",      "Category": "International ETF"},
+    {"Company Name": "Nifty Bank ETF (ICICI)",          "Ticker symbols": "BANKBEES",    "Category": "Sector ETF"},
+    {"Company Name": "Nifty Auto ETF",                  "Ticker symbols": "AUTOBEES",    "Category": "Sector ETF"},
+    {"Company Name": "Nifty Realty ETF (Nippon)",       "Ticker symbols": "NIFTYREAL",   "Category": "Sector ETF"},
+    {"Company Name": "Nippon Nifty Infrastructure ETF", "Ticker symbols": "INFRABEES",   "Category": "Sector ETF"},
+    {"Company Name": "Global X AI & Technology ETF",    "Ticker symbols": "MOGLIXETF",   "Category": "Thematic ETF"},
+    {"Company Name": "First Trust Nasdaq AI ETF",       "Ticker symbols": "AIIETF",      "Category": "Thematic ETF"},
+    {"Company Name": "Global X Data Center ETF",        "Ticker symbols": "DCIETF",      "Category": "Thematic ETF"},
 ]
 
 
@@ -83,12 +61,7 @@ STOCK_COLUMNS = [
 # Ticker normalisation
 # ─────────────────────────────────────────────────────────────────────────────
 
-def normalise_ticker(raw: str) -> str | None:
-    """
-    'ITC'      → 'ITC.NS'
-    'ITC.NS'   → 'ITC.NS'
-    'Not Exists' / '' / 'N/A' → None  (skip row)
-    """
+def normalise_ticker(raw) -> str | None:
     if not isinstance(raw, str):
         return None
     t = raw.strip().upper().replace(" ", "").replace(".NS", "")
@@ -102,7 +75,6 @@ def normalise_ticker(raw: str) -> str | None:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _fetch_csv_public(url: str) -> pd.DataFrame | None:
-    """Try the public CSV export. Returns None if sheet is private or on error."""
     try:
         log.info(f"Trying public CSV export: {url}")
         resp = requests.get(url, timeout=30)
@@ -111,6 +83,7 @@ def _fetch_csv_public(url: str) -> pd.DataFrame | None:
             return None
         df = pd.read_csv(io.StringIO(resp.text))
         log.info(f"  → {len(df)} rows fetched via public CSV.")
+        log.info(f"  Columns found: {list(df.columns)}")
         return df
     except Exception as e:
         log.warning(f"Public CSV fetch failed: {e}")
@@ -118,11 +91,6 @@ def _fetch_csv_public(url: str) -> pd.DataFrame | None:
 
 
 def _fetch_csv_service_account(worksheet_name: str) -> pd.DataFrame | None:
-    """
-    Fallback: Google Sheets API v4 via gspread service account.
-    Credentials are read from the GOOGLE_SHEETS_CREDENTIALS env var
-    (set as GitHub Secret — contains the full service account JSON).
-    """
     try:
         import gspread
         from google.oauth2.service_account import Credentials
@@ -139,7 +107,6 @@ def _fetch_csv_service_account(worksheet_name: str) -> pd.DataFrame | None:
         ]
         creds = Credentials.from_service_account_info(creds_info, scopes=scopes)
         gc = gspread.authorize(creds)
-
         sh = gc.open_by_key(SHEET_ID)
         ws = sh.worksheet(worksheet_name)
         data = ws.get_all_records()
@@ -171,17 +138,55 @@ def fetch_etf_universe() -> pd.DataFrame | None:
 
 def process_stock_universe(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Clean the raw stock DataFrame:
-    - Keep only known columns (add missing ones as NaN)
-    - Normalise tickers
-    - Drop rows with invalid tickers
-    - Add fetch timestamp
+    Clean raw stock DataFrame.
+    Automatically finds the ticker column regardless of exact name.
     """
-    # Align to expected columns (adds missing as NaN, drops extras)
-    for col in STOCK_COLUMNS:
-        if col not in df.columns:
-            df[col] = None
-    df = df[STOCK_COLUMNS].copy()
+    df = df.copy()
+
+    # ── Find ticker column flexibly ───────────────────────────────────────────
+    ticker_col_found = None
+    candidates = [
+        "Ticker symbols", "Ticker (NSE)", "Ticker Symbol", "Ticker",
+        "NSE Ticker", "Symbol", "NSE Symbol", "ticker", "TICKER"
+    ]
+    for c in candidates:
+        if c in df.columns:
+            ticker_col_found = c
+            break
+
+    # Also try partial match as last resort
+    if ticker_col_found is None:
+        for col in df.columns:
+            if "ticker" in col.lower() or "symbol" in col.lower():
+                ticker_col_found = col
+                break
+
+    if ticker_col_found is None:
+        log.error(f"Could not find ticker column. Available columns: {list(df.columns)}")
+        raise KeyError(f"No ticker column found in sheet. Columns: {list(df.columns)}")
+
+    log.info(f"Using ticker column: '{ticker_col_found}'")
+
+    # Rename to standard internal name
+    df = df.rename(columns={ticker_col_found: "Ticker (NSE)"})
+
+    # Find TA Status column flexibly
+    ta_col = None
+    for c in df.columns:
+        if "ta status" in c.lower() or (c.strip().lower() in ["ta status", "status"]):
+            ta_col = c
+            break
+    if ta_col and ta_col != "TA Status":
+        df = df.rename(columns={ta_col: "TA Status"})
+
+    # Find company name column
+    name_col = None
+    for c in df.columns:
+        if c.lower() in ["name", "company name", "company"]:
+            name_col = c
+            break
+    if name_col and name_col != "Company Name":
+        df = df.rename(columns={name_col: "Company Name"})
 
     # Normalise tickers
     df["Ticker (NSE)"] = df["Ticker (NSE)"].apply(normalise_ticker)
@@ -197,25 +202,26 @@ def process_stock_universe(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def process_etf_universe(df: pd.DataFrame | None) -> pd.DataFrame:
-    """
-    Merge the Google Sheet ETF tab with the hard-coded Strategy 5 ETF master list.
-    Always ensure the 13 Strategy 5 ETFs are present.
-    """
     s5_df = pd.DataFrame(STRATEGY5_ETF_MASTER)
-    s5_df["Ticker (NSE)"] = s5_df["Ticker (NSE)"].apply(
+    s5_df["Ticker (NSE)"] = s5_df["Ticker symbols"].apply(
         lambda x: normalise_ticker(x) or x + ".NS"
     )
     s5_df["_source"] = "strategy5_master"
 
     if df is not None and len(df) > 0:
-        # Normalise sheet tickers
-        if "Ticker (NSE)" in df.columns:
+        # Find ticker column in ETF sheet
+        ticker_col_found = None
+        for c in df.columns:
+            if "ticker" in c.lower() or "symbol" in c.lower():
+                ticker_col_found = c
+                break
+        if ticker_col_found:
+            df = df.rename(columns={ticker_col_found: "Ticker (NSE)"})
             df["Ticker (NSE)"] = df["Ticker (NSE)"].apply(normalise_ticker)
             df = df[df["Ticker (NSE)"].notna()].copy()
         df["_source"] = "google_sheet"
 
-        # Merge: sheet rows + any S5 ETFs not already in sheet
-        sheet_tickers = set(df["Ticker (NSE)"].tolist())
+        sheet_tickers = set(df["Ticker (NSE)"].tolist()) if "Ticker (NSE)" in df.columns else set()
         extra_s5 = s5_df[~s5_df["Ticker (NSE)"].isin(sheet_tickers)]
         combined = pd.concat([df, extra_s5], ignore_index=True)
     else:
@@ -231,18 +237,7 @@ def process_etf_universe(df: pd.DataFrame | None) -> pd.DataFrame:
 # Change detection
 # ─────────────────────────────────────────────────────────────────────────────
 
-def detect_changes(
-    current: pd.DataFrame,
-    prev_path: Path,
-) -> pd.DataFrame:
-    """
-    Compare current stock universe with the previous run's copy.
-    Detects:
-      - Added tickers
-      - Removed tickers
-      - TA Status changes
-    Returns a DataFrame logged to universe_changes.csv.
-    """
+def detect_changes(current: pd.DataFrame, prev_path: Path) -> pd.DataFrame:
     changes = []
     run_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -259,43 +254,34 @@ def detect_changes(
     curr_tickers = set(current["Ticker (NSE)"].tolist())
     prev_tickers = set(prev["Ticker (NSE)"].tolist())
 
-    # Added
     for t in sorted(curr_tickers - prev_tickers):
         row = current[current["Ticker (NSE)"] == t].iloc[0]
         changes.append({
-            "run_at": run_ts,
-            "change_type": "ADDED",
-            "ticker": t,
+            "run_at": run_ts, "change_type": "ADDED", "ticker": t,
             "company": row.get("Company Name", ""),
             "detail": f"Added to master list | TA Status: {row.get('TA Status', '')}",
         })
 
-    # Removed
     for t in sorted(prev_tickers - curr_tickers):
         row = prev[prev["Ticker (NSE)"] == t].iloc[0]
         changes.append({
-            "run_at": run_ts,
-            "change_type": "REMOVED",
-            "ticker": t,
+            "run_at": run_ts, "change_type": "REMOVED", "ticker": t,
             "company": row.get("Company Name", ""),
             "detail": f"Removed from master list | Was TA Status: {row.get('TA Status', '')}",
         })
 
-    # TA Status changes (for stocks in both)
     common = curr_tickers & prev_tickers
     curr_idx = current.set_index("Ticker (NSE)")
     prev_idx = prev.set_index("Ticker (NSE)")
 
     for t in sorted(common):
         try:
-            curr_status = str(curr_idx.loc[t, "TA Status"]).strip()
-            prev_status = str(prev_idx.loc[t, "TA Status"]).strip()
+            curr_status = str(curr_idx.loc[t, "TA Status"]).strip() if "TA Status" in curr_idx.columns else ""
+            prev_status = str(prev_idx.loc[t, "TA Status"]).strip() if "TA Status" in prev_idx.columns else ""
             if curr_status != prev_status:
                 changes.append({
-                    "run_at": run_ts,
-                    "change_type": "TA_STATUS_CHANGED",
-                    "ticker": t,
-                    "company": curr_idx.loc[t, "Company Name"],
+                    "run_at": run_ts, "change_type": "TA_STATUS_CHANGED", "ticker": t,
+                    "company": curr_idx.loc[t, "Company Name"] if "Company Name" in curr_idx.columns else "",
                     "detail": f"TA Status: '{prev_status}' → '{curr_status}'",
                 })
         except Exception:
@@ -303,8 +289,6 @@ def detect_changes(
 
     if changes:
         log.info(f"Universe changes detected: {len(changes)} changes.")
-        for c in changes:
-            log.info(f"  [{c['change_type']}] {c['ticker']} — {c['detail']}")
     else:
         log.info("No changes detected in universe since last run.")
 
@@ -316,14 +300,6 @@ def detect_changes(
 # ─────────────────────────────────────────────────────────────────────────────
 
 def run() -> dict:
-    """
-    Full universe refresh cycle:
-      1. Fetch Google Sheet (stocks + ETFs)
-      2. Process & normalise
-      3. Detect changes vs previous run
-      4. Save CSVs
-      5. Return summary dict for use by orchestrator scripts
-    """
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
     stock_path      = DATA_DIR / "stock_universe.csv"
@@ -331,13 +307,11 @@ def run() -> dict:
     prev_stock_path = DATA_DIR / "stock_universe_prev.csv"
     changes_path    = DATA_DIR / "universe_changes.csv"
 
-    # ── 1. Backup previous run ───────────────────────────────────────────────
     if stock_path.exists():
         import shutil
         shutil.copy(stock_path, prev_stock_path)
         log.info("Previous stock universe backed up.")
 
-    # ── 2. Fetch ─────────────────────────────────────────────────────────────
     raw_stocks = fetch_stock_universe()
     raw_etfs   = fetch_etf_universe()
 
@@ -345,14 +319,11 @@ def run() -> dict:
         log.error("CRITICAL: Could not fetch stock universe from any source.")
         raise RuntimeError("Stock universe fetch failed.")
 
-    # ── 3. Process ───────────────────────────────────────────────────────────
     stocks = process_stock_universe(raw_stocks)
     etfs   = process_etf_universe(raw_etfs)
 
-    # ── 4. Detect changes ────────────────────────────────────────────────────
     changes = detect_changes(stocks, prev_stock_path)
 
-    # Append to cumulative changes log
     if not changes.empty:
         if changes_path.exists():
             existing = pd.read_csv(changes_path)
@@ -360,19 +331,18 @@ def run() -> dict:
         changes.to_csv(changes_path, index=False)
         log.info(f"Changes log saved → {changes_path}")
 
-    # ── 5. Save ──────────────────────────────────────────────────────────────
     stocks.to_csv(stock_path, index=False)
     etfs.to_csv(etf_path, index=False)
     log.info(f"Saved: {stock_path} ({len(stocks)} stocks)")
     log.info(f"Saved: {etf_path} ({len(etfs)} ETFs)")
 
     summary = {
-        "stock_count":    len(stocks),
-        "etf_count":      len(etfs),
-        "stock_tickers":  stocks["Ticker (NSE)"].tolist(),
-        "etf_tickers":    etfs["Ticker (NSE)"].tolist(),
-        "changes_count":  len(changes) if not changes.empty else 0,
-        "fetched_at":     datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "stock_count":   len(stocks),
+        "etf_count":     len(etfs),
+        "stock_tickers": stocks["Ticker (NSE)"].tolist(),
+        "etf_tickers":   etfs["Ticker (NSE)"].tolist(),
+        "changes_count": len(changes) if not changes.empty else 0,
+        "fetched_at":    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
     return summary
 
