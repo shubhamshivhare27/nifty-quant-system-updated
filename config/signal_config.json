@@ -1,0 +1,402 @@
+{
+  "strategies": [
+    {
+      "id": "S1_monthly_ema20_breakout",
+      "name": "Monthly EMA20 Breakout",
+      "enabled": true,
+      "type": "trend_following",
+      "signal_timeframe": "monthly",
+      "universe": "stocks",
+      "description": "Monthly EMA20 breakout on trending stocks. Requires RSI > 60 on all three timeframes and full EMA alignment before entry.",
+
+      "universe_filter": {
+        "operator": "AND",
+        "conditions": [
+          {"indicator": "RSI14", "timeframe": "monthly", "operator": ">", "value": 60},
+          {"indicator": "RSI14", "timeframe": "weekly",  "operator": ">", "value": 60},
+          {"indicator": "RSI14", "timeframe": "daily",   "operator": ">", "value": 60}
+        ]
+      },
+
+      "setup_conditions": {
+        "operator": "AND",
+        "timeframe": "monthly",
+        "conditions": [
+          {"indicator": "EMA10", "operator": ">", "compare_to": "EMA20"},
+          {"indicator": "EMA20", "operator": ">", "compare_to": "EMA50"},
+          {"indicator": "close", "operator": ">", "compare_to": "EMA50"}
+        ]
+      },
+
+      "entry_signal": {
+        "operator": "SINGLE",
+        "timeframe": "monthly",
+        "conditions": [
+          {
+            "type": "crossover_above",
+            "fast": "close",
+            "slow": "EMA20",
+            "description": "Monthly closing price crosses above EMA20 from below"
+          }
+        ]
+      },
+
+      "exit_signal": {
+        "operator": "SINGLE",
+        "timeframe": "monthly",
+        "conditions": [
+          {
+            "type": "crossover_below",
+            "fast": "EMA10",
+            "slow": "EMA20",
+            "additional": [
+              {"indicator": "EMA10_slope", "operator": "<", "value": 0},
+              {"indicator": "EMA20_slope", "operator": "<", "value": 0}
+            ],
+            "description": "EMA10 crosses below EMA20 with both slopes downward"
+          }
+        ]
+      },
+
+      "indicators_required": {
+        "daily":   ["RSI14"],
+        "weekly":  ["RSI14"],
+        "monthly": ["RSI14", "EMA10", "EMA20", "EMA50", "EMA10_slope", "EMA20_slope"]
+      },
+
+      "companion_strategy": "S2_weekly_ema_pullback"
+    },
+
+    {
+      "id": "S2_weekly_ema_pullback",
+      "name": "Weekly EMA10/20 Pullback Cross",
+      "enabled": true,
+      "type": "trend_following",
+      "signal_timeframe": "weekly",
+      "universe": "stocks",
+      "description": "Catches the next weekly pullback entry after a Strategy 1 monthly entry was missed. Operates only within the Strategy 1 monthly uptrend window.",
+
+      "universe_filter": {
+        "operator": "AND",
+        "conditions": [
+          {"indicator": "RSI14", "timeframe": "monthly", "operator": ">", "value": 60},
+          {"indicator": "RSI14", "timeframe": "weekly",  "operator": ">", "value": 60},
+          {"indicator": "RSI14", "timeframe": "daily",   "operator": ">", "value": 60}
+        ]
+      },
+
+      "monthly_preconditions": {
+        "operator": "AND",
+        "timeframe": "monthly",
+        "description": "Must be true on monthly chart at time of weekly signal evaluation",
+        "conditions": [
+          {"indicator": "EMA10", "operator": ">", "compare_to": "EMA20"},
+          {"indicator": "EMA20", "operator": ">", "compare_to": "EMA50"}
+        ]
+      },
+
+      "setup_conditions": {
+        "operator": "SINGLE",
+        "timeframe": "weekly",
+        "conditions": [
+          {"indicator": "EMA10", "operator": "<", "compare_to": "EMA20",
+           "description": "EMA10 was below EMA20 last week (pullback state)"}
+        ]
+      },
+
+      "entry_signal": {
+        "operator": "SINGLE",
+        "timeframe": "weekly",
+        "conditions": [
+          {
+            "type": "crossover_above",
+            "fast": "EMA10",
+            "slow": "EMA20",
+            "description": "EMA10 crosses above EMA20 on weekly chart — pullback ended"
+          }
+        ]
+      },
+
+      "exit_signal": {
+        "operator": "SINGLE",
+        "timeframe": "weekly",
+        "conditions": [
+          {
+            "type": "crossover_below",
+            "fast": "EMA10",
+            "slow": "EMA20",
+            "description": "EMA10 crosses below EMA20 on weekly chart"
+          }
+        ]
+      },
+
+      "indicators_required": {
+        "daily":   ["RSI14"],
+        "weekly":  ["RSI14", "EMA10", "EMA20"],
+        "monthly": ["RSI14", "EMA10", "EMA20", "EMA50"]
+      },
+
+      "notes": [
+        "RSI filter is universe/entry filter only — RSI drop does NOT trigger exit",
+        "Monthly pre-condition checked at time of weekly signal evaluation",
+        "Can be held simultaneously with Strategy 1 on same stock",
+        "Weekly EMA50 NOT used — EMA50 referenced only on monthly"
+      ]
+    },
+
+    {
+      "id": "S3_monthly_ssf50_breakout",
+      "name": "Monthly SSF50 Breakout",
+      "enabled": true,
+      "type": "breakout",
+      "signal_timeframe": "monthly",
+      "universe": "stocks",
+      "description": "Early structural reversal on monthly chart. Stock was deep in downtrend below SSF50/200/250, now breaks above SSF50 with RSI and MACD confirmation.",
+
+      "universe_filter": {
+        "operator": "NONE",
+        "description": "All stocks from master list are eligible"
+      },
+
+      "setup_conditions": {
+        "operator": "AND",
+        "timeframe": "monthly",
+        "look_at": "previous_bar",
+        "description": "All three must have been true at PREVIOUS monthly close",
+        "conditions": [
+          {"indicator": "close", "operator": "<", "compare_to": "SSF50",  "bar": "prev"},
+          {"indicator": "close", "operator": "<", "compare_to": "SSF200", "bar": "prev"},
+          {"indicator": "close", "operator": "<", "compare_to": "SSF250", "bar": "prev"}
+        ]
+      },
+
+      "entry_signal": {
+        "operator": "AND",
+        "timeframe": "monthly",
+        "conditions": [
+          {
+            "type": "crossover_above",
+            "fast": "close",
+            "slow": "SSF50",
+            "description": "Price crosses above SSF50 on monthly chart"
+          },
+          {
+            "type": "comparison",
+            "indicator": "RSI14",
+            "operator": ">",
+            "compare_to": "RSI14_MA",
+            "description": "RSI14 strictly greater than SMA(RSI14, 14)"
+          },
+          {
+            "type": "comparison",
+            "indicator": "MACD_line",
+            "operator": ">",
+            "compare_to": "MACD_signal",
+            "description": "MACD Line above Signal Line"
+          }
+        ]
+      },
+
+      "exit_signal": {
+        "operator": "SINGLE",
+        "timeframe": "monthly",
+        "conditions": [
+          {
+            "type": "crossover_below",
+            "fast": "MACD_line",
+            "slow": "MACD_signal",
+            "description": "MACD Line crosses below Signal Line on monthly chart"
+          }
+        ]
+      },
+
+      "indicators_required": {
+        "monthly": ["SSF50", "SSF200", "SSF250", "RSI14", "RSI14_MA", "MACD_line", "MACD_signal", "MACD_hist"]
+      },
+
+      "notes": [
+        "SSF200 and SSF250 are setup conditions only — their position vs price during entry month NOT checked",
+        "RSI confirmation: RSI14 STRICTLY > SMA(RSI14,14). Equal values = condition NOT satisfied",
+        "Exit only when MACD bearish crossover happens — not if already below signal last month"
+      ]
+    },
+
+    {
+      "id": "S4_weekly_ssf50_breakout",
+      "name": "Weekly SSF50 Breakout",
+      "enabled": true,
+      "type": "breakout",
+      "signal_timeframe": "weekly",
+      "universe": "stocks",
+      "description": "Early structural reversal on weekly chart. Stock breaks above SSF50 after being below SSF50/200/250, confirmed by RSI above its MA and MACD positive crossover.",
+
+      "universe_filter": {
+        "operator": "NONE",
+        "description": "All stocks from master list are eligible"
+      },
+
+      "setup_conditions": {
+        "operator": "AND",
+        "timeframe": "weekly",
+        "look_at": "previous_bar",
+        "description": "All three must have been true at PREVIOUS weekly close",
+        "conditions": [
+          {"indicator": "close", "operator": "<", "compare_to": "SSF50",  "bar": "prev"},
+          {"indicator": "close", "operator": "<", "compare_to": "SSF200", "bar": "prev"},
+          {"indicator": "close", "operator": "<", "compare_to": "SSF250", "bar": "prev"}
+        ]
+      },
+
+      "entry_signal": {
+        "operator": "AND",
+        "timeframe": "weekly",
+        "conditions": [
+          {
+            "type": "crossover_above",
+            "fast": "close",
+            "slow": "SSF50",
+            "description": "Price crosses above SSF50 on weekly chart"
+          },
+          {
+            "type": "comparison",
+            "indicator": "RSI14",
+            "operator": ">",
+            "compare_to": "RSI14_MA",
+            "description": "RSI14 strictly greater than SMA(RSI14, 14)"
+          },
+          {
+            "type": "crossover_above",
+            "fast": "MACD_line",
+            "slow": "MACD_signal",
+            "description": "MACD Line crosses above Signal Line this week"
+          },
+          {
+            "type": "comparison",
+            "indicator": "MACD_line",
+            "operator": ">",
+            "value": 0,
+            "description": "MACD Line must be above zero"
+          },
+          {
+            "type": "comparison",
+            "indicator": "MACD_signal",
+            "operator": ">",
+            "value": 0,
+            "description": "Signal Line must be above zero"
+          }
+        ]
+      },
+
+      "exit_signal": {
+        "operator": "SINGLE",
+        "timeframe": "weekly",
+        "conditions": [
+          {
+            "type": "crossover_below",
+            "fast": "MACD_line",
+            "slow": "MACD_signal",
+            "description": "MACD Line crosses below Signal Line on weekly chart"
+          }
+        ]
+      },
+
+      "indicators_required": {
+        "weekly": ["SSF50", "SSF200", "SSF250", "RSI14", "RSI14_MA", "MACD_line", "MACD_signal", "MACD_hist"]
+      },
+
+      "notes": [
+        "SSF200 and SSF250 setup only — not checked during entry week",
+        "MACD crossover must happen THIS week — previous week above signal = no signal",
+        "MACD Line > 0 AND Signal Line > 0 both required for entry",
+        "RSI14 STRICTLY > SMA(RSI14,14) — equal values = not satisfied",
+        "Exit only on MACD bearish crossover week — not if already below signal"
+      ]
+    },
+
+    {
+      "id": "S5_weekly_etf_breakout",
+      "name": "Weekly ETF Breakout",
+      "enabled": true,
+      "type": "breakout",
+      "signal_timeframe": "weekly",
+      "universe": "etfs",
+      "description": "Two independent entry signals on all ETFs: SSF50 structural breakout (Signal A) OR EMA10/20 crossover (Signal B). Manual exit only.",
+
+      "universe_filter": {
+        "operator": "NONE",
+        "description": "All ETFs from the master ETF list — no indicator filtering"
+      },
+
+      "entry_signals": [
+        {
+          "signal_id": "A",
+          "label": "SSF50 Structural Breakout",
+          "setup_conditions": {
+            "operator": "SINGLE",
+            "timeframe": "weekly",
+            "look_at": "previous_bar",
+            "conditions": [
+              {"indicator": "close", "operator": "<", "compare_to": "SSF50", "bar": "prev",
+               "description": "Previous week close was below SSF50"}
+            ]
+          },
+          "entry": {
+            "type": "crossover_above",
+            "fast": "close",
+            "slow": "SSF50",
+            "timeframe": "weekly",
+            "description": "Current weekly close crosses above SSF50"
+          }
+        },
+        {
+          "signal_id": "B",
+          "label": "Weekly EMA10/20 Crossover",
+          "setup_conditions": {
+            "operator": "SINGLE",
+            "timeframe": "weekly",
+            "look_at": "previous_bar",
+            "conditions": [
+              {"indicator": "EMA10", "operator": "<", "compare_to": "EMA20", "bar": "prev",
+               "description": "EMA10 was below EMA20 last week"}
+            ]
+          },
+          "entry": {
+            "type": "crossover_above",
+            "fast": "EMA10",
+            "slow": "EMA20",
+            "timeframe": "weekly",
+            "description": "EMA10 crosses above EMA20 on weekly chart"
+          }
+        }
+      ],
+
+      "exit_signal": {
+        "type": "manual",
+        "description": "No automated exit. All exits managed manually by the trader."
+      },
+
+      "indicators_required": {
+        "weekly": ["SSF50", "EMA10", "EMA20"]
+      },
+
+      "notes": [
+        "Signal A and Signal B are fully independent — both can fire same week",
+        "If both fire in same week, TWO separate entries recorded",
+        "SSF50 setup condition applies ONLY to Signal A — Signal B has no SSF dependency",
+        "No RSI or MACD confirmation required for either signal",
+        "No automated exit — positions remain open until manually closed",
+        "ETF removed from master list while held → flag for manual review"
+      ]
+    }
+  ],
+
+  "run_schedule": {
+    "weekly_strategies":  ["S2_weekly_ema_pullback", "S4_weekly_ssf50_breakout", "S5_weekly_etf_breakout"],
+    "monthly_strategies": ["S1_monthly_ema20_breakout", "S3_monthly_ssf50_breakout"],
+    "weekly_run":  "every_friday_2130_IST",
+    "monthly_run": "last_friday_of_month_2130_IST"
+  },
+
+  "version": "1.0",
+  "last_updated": "2026-03-10"
+}
