@@ -65,41 +65,77 @@ def normalise_ticker(raw) -> str | None:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _fetch_via_service_account(worksheet_name: str) -> pd.DataFrame | None:
+    import traceback
     try:
         import gspread
         from google.oauth2.service_account import Credentials
+    except ImportError as e:
+        raise RuntimeError(f"Missing package: {e}. Run: pip install gspread google-auth")
 
-        # Try Streamlit secrets first, then environment variable
-        try:
-            import streamlit as st
-            creds_json = st.secrets.get("GOOGLE_SHEETS_CREDENTIALS")
-        except Exception:
-            creds_json = None
-        if not creds_json:
-            creds_json = os.environ.get("GOOGLE_SHEETS_CREDENTIALS")
-        if not creds_json:
-            log.error("GOOGLE_SHEETS_CREDENTIALS env var not set.")
-            return None
+    # ── Step 1: Get credentials JSON ─────────────────────────────────────────
+    creds_json = None
 
+    # Try st.secrets first
+    try:
+        import streamlit as st
+        val = st.secrets.get("GOOGLE_SHEETS_CREDENTIALS")
+        if val:
+            creds_json = str(val)
+            log.info("Credentials loaded from Streamlit secrets.")
+    except Exception as e:
+        log.info(f"Streamlit secrets not available: {e}")
+
+    # Try os.environ
+    if not creds_json:
+        creds_json = os.environ.get("GOOGLE_SHEETS_CREDENTIALS")
+        if creds_json:
+            log.info("Credentials loaded from environment variable.")
+
+    if not creds_json:
+        raise RuntimeError(
+            "GOOGLE_SHEETS_CREDENTIALS not found in Streamlit secrets or environment. "
+            "Add it in Streamlit → App Settings → Secrets."
+        )
+
+    # ── Step 2: Parse JSON ────────────────────────────────────────────────────
+    try:
         creds_info = json.loads(creds_json)
+    except json.JSONDecodeError as e:
+        raise RuntimeError(f"GOOGLE_SHEETS_CREDENTIALS is not valid JSON: {e}")
+
+    # ── Step 3: Authenticate ─────────────────────────────────────────────────
+    try:
         scopes = [
             "https://www.googleapis.com/auth/spreadsheets.readonly",
             "https://www.googleapis.com/auth/drive.readonly",
         ]
         creds = Credentials.from_service_account_info(creds_info, scopes=scopes)
         gc = gspread.authorize(creds)
+    except Exception as e:
+        raise RuntimeError(f"Google auth failed: {e}")
 
+    # ── Step 4: Open sheet ───────────────────────────────────────────────────
+    try:
         sh = gc.open_by_key(SHEET_ID)
+    except Exception as e:
+        raise RuntimeError(f"Cannot open sheet {SHEET_ID}: {e}. Check service account has Viewer access.")
+
+    # ── Step 5: Open worksheet ───────────────────────────────────────────────
+    try:
         ws = sh.worksheet(worksheet_name)
+    except Exception as e:
+        available = [w.title for w in sh.worksheets()]
+        raise RuntimeError(f"Worksheet '{worksheet_name}' not found. Available: {available}")
+
+    # ── Step 6: Fetch data ───────────────────────────────────────────────────
+    try:
         data = ws.get_all_records()
         df = pd.DataFrame(data)
-        log.info(f"  → {len(df)} rows fetched via service account ('{worksheet_name}').")
+        log.info(f"  → {len(df)} rows fetched from '{worksheet_name}'.")
         log.info(f"  Columns: {list(df.columns)}")
         return df
-
     except Exception as e:
-        log.error(f"Service account fetch failed for '{worksheet_name}': {e}")
-        return None
+        raise RuntimeError(f"Failed to read worksheet data: {e}")
 
 
 def fetch_stock_universe() -> pd.DataFrame | None:
@@ -258,7 +294,7 @@ def run() -> dict:
     raw_etfs   = fetch_etf_universe()
 
     if raw_stocks is None:
-        raise RuntimeError("Stock universe fetch failed — check GOOGLE_SHEETS_CREDENTIALS secret.")
+        raise  # re-raise the actual error so dashboard shows real message
 
     stocks = process_stock_universe(raw_stocks)
     etfs   = process_etf_universe(raw_etfs)
