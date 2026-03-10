@@ -29,21 +29,21 @@ WORKSHEET_ETFS   = "Stock Summary"       # ETF tab
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
-# Strategy 5 — fixed ETF master list (all NSE-listed)
+# Strategy 5 — ETF master list (exact tickers from your Google Sheet col G rows 10-22)
 STRATEGY5_ETF_MASTER = [
-    {"Company Name": "Nifty 50 ETF (Nippon)",           "Ticker symbols": "NIFTYBEES",   "Category": "Core ETF"},
-    {"Company Name": "Nifty Next 50 ETF (Nippon)",      "Ticker symbols": "JUNIORBEES",  "Category": "Core ETF"},
-    {"Company Name": "SBI Nifty 50 ETF",                "Ticker symbols": "SETFNIF50",   "Category": "Core ETF"},
-    {"Company Name": "Nippon India Nifty ETF",          "Ticker symbols": "NIPPONNIFTY", "Category": "Core ETF"},
-    {"Company Name": "Motilal Oswal Nasdaq 100 ETF",    "Ticker symbols": "MOM100",      "Category": "International ETF"},
-    {"Company Name": "Motilal Oswal S&P 500 ETF",       "Ticker symbols": "MAFANG",      "Category": "International ETF"},
-    {"Company Name": "Nifty Bank ETF (ICICI)",          "Ticker symbols": "BANKBEES",    "Category": "Sector ETF"},
-    {"Company Name": "Nifty Auto ETF",                  "Ticker symbols": "AUTOBEES",    "Category": "Sector ETF"},
-    {"Company Name": "Nifty Realty ETF (Nippon)",       "Ticker symbols": "NIFTYREAL",   "Category": "Sector ETF"},
-    {"Company Name": "Nippon Nifty Infrastructure ETF", "Ticker symbols": "INFRABEES",   "Category": "Sector ETF"},
-    {"Company Name": "Global X AI & Technology ETF",    "Ticker symbols": "MOGLIXETF",   "Category": "Thematic ETF"},
-    {"Company Name": "First Trust Nasdaq AI ETF",       "Ticker symbols": "AIIETF",      "Category": "Thematic ETF"},
-    {"Company Name": "Global X Data Center ETF",        "Ticker symbols": "DCIETF",      "Category": "Thematic ETF"},
+    {"Company Name": "NIFTY 50 ETF",                                    "Ticker symbols": "NIFTY_50",    "Category": "Core ETF"},
+    {"Company Name": "NIFTY Next 50 ETF",                               "Ticker symbols": "JUNIORBEES",  "Category": "Core ETF"},
+    {"Company Name": "SBI Nifty 50 ETF",                                "Ticker symbols": "SETFNIF50",   "Category": "Core ETF"},
+    {"Company Name": "Nippon India Nifty ETF",                          "Ticker symbols": "NIFTYBEES",   "Category": "Core ETF"},
+    {"Company Name": "Motilal Oswal Nasdaq 100 ETF",                    "Ticker symbols": "MON100",      "Category": "International ETF"},
+    {"Company Name": "Motilal Oswal S&P 500 ETF",                       "Ticker symbols": "MASP500",     "Category": "International ETF"},
+    {"Company Name": "NIFTY Bank ETF",                                  "Ticker symbols": "BANKBEES",    "Category": "Sector ETF"},
+    {"Company Name": "NIFTY Auto ETF",                                  "Ticker symbols": "AUTOBEES",    "Category": "Sector ETF"},
+    {"Company Name": "NiFTY Realty ETF",                                "Ticker symbols": "NIFTY_REALTY","Category": "Sector ETF"},
+    {"Company Name": "Nippon NIFTY Infrastructure ETF",                 "Ticker symbols": "INFRABEES",   "Category": "Sector ETF"},
+    {"Company Name": "Global X Artificial Intelligence & Technology ETF","Ticker symbols": "AIQ",         "Category": "Thematic ETF"},
+    {"Company Name": "First Trust Nasdaq AI & Robotics ETF",            "Ticker symbols": "ROBT",        "Category": "Thematic ETF"},
+    {"Company Name": "Global X Data Center & Digital Infrastructure ETF","Ticker symbols": "DTCR",        "Category": "Thematic ETF"},
 ]
 
 
@@ -164,9 +164,67 @@ def fetch_stock_universe() -> pd.DataFrame | None:
 
 
 def fetch_etf_universe() -> pd.DataFrame | None:
-    """Fetch ETFs directly via service account."""
-    log.info(f"Fetching '{WORKSHEET_ETFS}' via service account ...")
-    return _fetch_via_service_account(WORKSHEET_ETFS)
+    """
+    Read ETFs from Stock Summary sheet — column A (name) and G (NSE Ticker)
+    rows 10 to 22 only. Falls back to Strategy 5 master list if fetch fails.
+    """
+    log.info(f"Fetching ETF list from '{WORKSHEET_ETFS}' rows 10-22 ...")
+    try:
+        import gspread
+        from google.oauth2.service_account import Credentials
+
+        creds_json = None
+        try:
+            import streamlit as st
+            val = st.secrets.get("GOOGLE_SHEETS_CREDENTIALS")
+            if val:
+                creds_json = str(val)
+        except Exception:
+            pass
+        if not creds_json:
+            creds_json = os.environ.get("GOOGLE_SHEETS_CREDENTIALS")
+        if not creds_json:
+            log.warning("No credentials — using Strategy 5 master list for ETFs.")
+            return None
+
+        creds_info = json.loads(creds_json)
+        scopes = [
+            "https://www.googleapis.com/auth/spreadsheets.readonly",
+            "https://www.googleapis.com/auth/drive.readonly",
+        ]
+        creds = Credentials.from_service_account_info(creds_info, scopes=scopes)
+        gc = gspread.authorize(creds)
+        sh = gc.open_by_key(SHEET_ID)
+        ws = sh.worksheet(WORKSHEET_ETFS)
+
+        # Read rows 10-22, columns A (1) and G (7)
+        names   = ws.col_values(1)[9:22]   # col A, rows 10-22 (0-indexed: 9-21)
+        tickers = ws.col_values(7)[9:22]   # col G, rows 10-22
+
+        rows = []
+        for name, ticker in zip(names, tickers):
+            name   = str(name).strip()
+            ticker = str(ticker).strip()
+            if name and ticker and ticker.lower() not in ("", "nan", "none", "nse ticker"):
+                rows.append({
+                    "Company Name":  name,
+                    "Ticker symbols": ticker,
+                    "Category":      "ETF",
+                    "_source":       "google_sheet",
+                })
+
+        if rows:
+            df = pd.DataFrame(rows)
+            log.info(f"ETFs loaded from sheet: {len(df)} rows")
+            log.info(f"  {list(zip(df['Company Name'], df['Ticker symbols']))}")
+            return df
+        else:
+            log.warning("No ETF rows found in sheet — using master list.")
+            return None
+
+    except Exception as e:
+        log.warning(f"ETF sheet fetch failed: {e} — using Strategy 5 master list.")
+        return None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
