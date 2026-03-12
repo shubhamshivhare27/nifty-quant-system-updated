@@ -113,7 +113,7 @@
       "type": "trend_following",
       "signal_timeframe": "weekly",
       "universe": "stocks",
-      "description": "Catches the next weekly pullback entry after a Strategy 1 monthly entry was missed. Operates only within the Strategy 1 monthly uptrend window.",
+      "description": "Weekly EMA10/20 pullback cross on Nifty 100 stocks. RSI14 > 60 on all 3 timeframes + EMA10>EMA20>EMA50 monthly pre-condition.",
       "universe_filter": {
         "operator": "AND",
         "conditions": [
@@ -134,13 +134,6 @@
             "timeframe": "daily",
             "operator": ">",
             "value": 60
-          },
-          {
-            "indicator": "mcap_cr",
-            "timeframe": "static",
-            "operator": ">=",
-            "value": 75000,
-            "description": "MCap >= Rs75,000 Cr \u2014 applied at bar time within Nifty 100 universe"
           }
         ]
       },
@@ -545,8 +538,8 @@
       "S2: Exit finalised \u2014 EMA10 crosses below EMA20 (weekly). Clean and symmetric with the entry condition (EMA10 crosses above EMA20). Previous experimental exits (close < EMA10, OR logic) removed."
     ],
     "2.5": [
-      "S1: Universe changed from 94-stock representative sample to all Nifty 100 stocks.",
-      "S2: Universe changed from MCap>=75k Cr hardcoded 25 stocks to all Nifty 100 stocks. MCap>=75k Cr filter still applied at bar time within the 100-stock universe."
+      "S1: Universe set to all Nifty 100 stocks. Universe filter: RSI14 > 60 on Daily AND Weekly AND Monthly.",
+      "S2: Universe set to all Nifty 100 stocks. Universe filter: RSI14 > 60 on Daily AND Weekly AND Monthly. MCap gate removed entirely."
     ]
   }
 }
