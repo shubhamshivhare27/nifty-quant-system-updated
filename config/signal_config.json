@@ -140,7 +140,7 @@
             "timeframe": "static",
             "operator": ">=",
             "value": 75000,
-            "description": "MCap >= Rs75,000 Cr \u2014 confirmed optimal via backtest 2020-2026, wins all 3 composite scores vs 50k and 1L. MaxDD halved vs 50k (-34.5% vs -60.2%)."
+            "description": "MCap >= Rs75,000 Cr \u2014 applied at bar time within Nifty 100 universe"
           }
         ]
       },
@@ -522,7 +522,7 @@
     "weekly_run": "every_friday_2130_IST",
     "monthly_run": "last_friday_of_month_2130_IST"
   },
-  "version": "2.4",
+  "version": "2.5",
   "last_updated": "2026-03-12",
   "changelog": {
     "2.0": [
@@ -543,6 +543,10 @@
     ],
     "2.4": [
       "S2: Exit finalised \u2014 EMA10 crosses below EMA20 (weekly). Clean and symmetric with the entry condition (EMA10 crosses above EMA20). Previous experimental exits (close < EMA10, OR logic) removed."
+    ],
+    "2.5": [
+      "S1: Universe changed from 94-stock representative sample to all Nifty 100 stocks.",
+      "S2: Universe changed from MCap>=75k Cr hardcoded 25 stocks to all Nifty 100 stocks. MCap>=75k Cr filter still applied at bar time within the 100-stock universe."
     ]
   }
 }
