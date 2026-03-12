@@ -35,7 +35,7 @@ CONFIRMED STRATEGY PARAMETERS  (post-backtest 2010–2026, CAGR-validated)
   S1 │ Monthly EMA20 Breakout   │ UNCHANGED  │ Universe expansion pending
      │                          │            │ (MCap + CAGR study on N500)
   ───┼──────────────────────────┼────────────┼──────────────────────────────
-  S2 │ Weekly EMA Pullback      │ CONFIRMED✅│ MCap > Rs75k Cr (126 stocks)
+  S2 │ Weekly EMA Pullback      │ CONFIRMED✅│ Nifty 100 universe, MCap>=75k Cr filter
      │                          │            │ V3 177.5 | MaxDD -34.5%
   ───┼──────────────────────────┼────────────┼──────────────────────────────
   S3 │ Monthly SSF50 Breakout   │ OPTION C ✅│ Added: MACD line > 0 filter
@@ -324,7 +324,7 @@ class SignalEngine:
         """
         Weekly EMA10/20 Pullback Cross — CONFIRMED ✅  MCap >= Rs75,000 Cr
 
-        Backtest validation 2023-2026 (Rs75k Cr universe, 126 stocks):
+        Backtest validation 2023-2026 (Nifty 100 universe, MCap>=Rs75k Cr filter):
           25 trades | WR 64.0% | Exp +31.07% | CAGR +106.2%/yr | MaxDD -34.49%
           V3 Score 177.5 — beats Rs50k Cr (132.6) and Rs1L Cr (161.4) on ALL 3
           composite scoring formulas. MaxDD halved vs Rs50k (-34.5% vs -60.2%).
