@@ -322,15 +322,9 @@ class SignalEngine:
 
     def run_strategy2(self, ticker: str, portfolio_tickers: set[str]) -> list[dict]:
         """
-        Weekly EMA10/20 Pullback Cross — CONFIRMED ✅  MCap >= Rs75,000 Cr
-
-        Backtest validation 2023-2026 (Nifty 100 universe, MCap>=Rs75k Cr filter):
-          25 trades | WR 64.0% | Exp +31.07% | CAGR +106.2%/yr | MaxDD -34.49%
-          V3 Score 177.5 — beats Rs50k Cr (132.6) and Rs1L Cr (161.4) on ALL 3
-          composite scoring formulas. MaxDD halved vs Rs50k (-34.5% vs -60.2%).
+        Weekly EMA10/20 Pullback Cross — CONFIRMED ✅  Nifty 100 universe
 
         Universe filter   : RSI14 > 60 on Daily AND Weekly AND Monthly (AND logic)
-                          + MCap >= Rs75,000 Cr  (confirmed optimal threshold)
         Monthly condition : EMA10 > EMA20 > EMA50 on monthly timeframe
         Setup             : Weekly EMA10 was below EMA20 last week (pullback)
         Entry (BUY)       : Weekly EMA10 crosses above EMA20 this week
@@ -340,13 +334,6 @@ class SignalEngine:
         """
         signals = []
         try:
-            # MCap filter — only run signal logic for Rs75k Cr+ stocks
-            # qualified_universe.csv is built by backtest_s1_s2_nifty500.py
-            # The caller (run_all) should pre-filter stock_tickers by MCap.
-            # This check here is a belt-and-braces guard in case caller doesn't filter.
-            mcap_cr = self.config.get("s2_mcap_universe", {}).get(ticker)
-            if mcap_cr is not None and mcap_cr < 75_000:
-                return []
             data = self._fetch_multi(ticker, ["daily", "weekly", "monthly"], lookback_years=3)
             df_d = data.get("daily")
             df_w = data.get("weekly")
@@ -772,32 +759,14 @@ class SignalEngine:
         # Full analysis universe: sheet tickers ∪ portfolio holdings
         full_stock_universe = list(set(stock_tickers) | portfolio_tickers)
 
-        # ── S2 MCap pre-filter — Rs75,000 Cr+ only ───────────────────────────
-        # Load qualified_universe.csv to get MCap for each ticker.
-        # Tickers already held (portfolio_tickers) bypass the MCap filter so
-        # SELL signals are never missed on existing positions.
-        s2_universe = full_stock_universe  # default: all (safe fallback)
-        try:
-            mcap_path = DATA_DIR.parent / "backtest_s1_s2_n500" / "qualified_universe.csv"
-            if mcap_path.exists():
-                mcap_df = pd.read_csv(mcap_path)
-                large_cap = set(mcap_df[mcap_df["mcap_cr"] >= 75_000]["ticker"].tolist())
-                # include portfolio holdings regardless of MCap (need SELL signals)
-                s2_universe = [t for t in full_stock_universe
-                               if t in large_cap or t in portfolio_tickers]
-                log.info(f"S2 MCap filter: {len(s2_universe)}/{len(full_stock_universe)} "
-                         f"stocks pass Rs75k Cr threshold (+ {len(portfolio_tickers)} held)")
-            else:
-                log.warning("qualified_universe.csv not found — S2 running on full universe. "
-                            "MCap filter not applied. Run backtest_s1_s2_nifty500.py to build it.")
-        except Exception as e:
-            log.warning(f"S2 MCap filter failed ({e}) — falling back to full universe.")
+        # ── S2 universe = same full_stock_universe (RSI filter applied inside run_strategy2) ──
+        s2_universe = full_stock_universe
 
         all_signals: list[dict] = []
 
         # ── Weekly strategies ─────────────────────────────────────────────────
         if self.mode in ("weekly", "both"):
-            log.info(f"Running S2 on {len(s2_universe)} stocks (Rs75k Cr+ filter) ...")
+            log.info(f"Running S2 on {len(s2_universe)} stocks (Nifty 100, RSI filter at bar time) ...")
             log.info(f"Running S4/S5 on {len(full_stock_universe)} stocks ...")
 
             for i, ticker in enumerate(full_stock_universe, 1):
