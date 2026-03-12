@@ -408,7 +408,7 @@ class SignalEngine:
                 ))
                 return signals
 
-            # SELL: EMA10 crosses below EMA20 this week
+            # SELL: EMA10 crosses below EMA20 (weekly)
             if ticker in portfolio_tickers:
                 sell_ok = (ema10_prev > ema20_prev) and (ema10_now < ema20_now)
                 if sell_ok:
