@@ -28,6 +28,12 @@ log = logging.getLogger("email_report")
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
+# Dashboard URL — update this if the Streamlit URL changes
+DASHBOARD_URL = os.environ.get(
+    "DASHBOARD_URL",
+    "https://nifty-quant-system-updated-afqpypkjc7xdpnefsq8d3i.streamlit.app"
+)
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # HTML helpers
@@ -164,7 +170,12 @@ def build_html_body(
 
       <div style="background:linear-gradient(135deg,#1a1a3e,#0f0f28);border-radius:12px;padding:24px;margin-bottom:24px;">
         <h1 style="color:#7c83fd;margin:0 0 8px 0;font-size:22px;">📊 Nifty 500 Signal Engine</h1>
-        <p style="color:#aaa;margin:0;font-size:13px;">Signal Date: {run_date}</p>
+        <p style="color:#aaa;margin:0 0 12px 0;font-size:13px;">Signal Date: {run_date}</p>
+        <a href="{DASHBOARD_URL}"
+           style="display:inline-block;background:#7c83fd;color:#fff;text-decoration:none;
+                  padding:8px 20px;border-radius:6px;font-size:13px;font-weight:bold;">
+          🔗 View Live Dashboard
+        </a>
       </div>
 
       <!-- Summary -->
@@ -216,6 +227,10 @@ def build_html_body(
       <!-- Footer -->
       <div style='text-align:center;padding:16px;color:#555;font-size:12px;'>
         Next signal run: <strong style='color:#7c83fd;'>{next_friday}</strong>
+        &nbsp;|&nbsp;
+        <a href="{DASHBOARD_URL}" style="color:#7c83fd;text-decoration:none;">
+          Live Dashboard ↗
+        </a>
         &nbsp;|&nbsp; Nifty 500 Quant Signal Engine
       </div>
 
