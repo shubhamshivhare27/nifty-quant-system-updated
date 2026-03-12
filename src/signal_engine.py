@@ -46,7 +46,8 @@ CONFIRMED STRATEGY PARAMETERS  (post-backtest 2010–2026, CAGR-validated)
      │                          │            │ Profitable 14/14 periods
      │                          │            │ Exp: +8.5% vs -3.98% (live)
   ───┼──────────────────────────┼────────────┼──────────────────────────────
-  S5 │ Weekly ETF Breakout      │ UNCHANGED  │ Manual exit, no change
+  S5 │ Weekly ETF Breakout      │ MODIFIED-1✅│ SSF50 + RSI14 > RSI14_MA
+     │                          │            │ WR 77.8% | Exp +52.7% | V3 4748
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 S3 OPTION C — what changed from live (Option B)
@@ -650,10 +651,30 @@ class SignalEngine:
 
     def run_strategy5(self, ticker: str) -> list[dict]:
         """
-        Two independent weekly ETF signals.
-        Signal A: price crosses above SSF50 (setup: prev week < SSF50).
-        Signal B: EMA10 crosses above EMA20 (independent, no SSF dependency).
-        No automated exit — manual only.
+        Weekly ETF SSF50 Breakout — CONFIRMED VARIANT: Modified-1  ✅
+
+        Backtest 2020-2026 (12 ETFs, 2 windows):
+          2023-2026 : 18 trades | WR 77.8% | Exp +52.71% | CAGR +109.4% | MaxDD -9.72%
+                      PF 78.37 | V3 Score 4748
+          2020-2022 : 23 trades | WR 56.5% | Exp +33.04% | CAGR +104.9% | MaxDD -61.07%
+
+        CHANGE FROM ORIGINAL (as-is → Modified-1):
+          Was: SSF50 breakout only — no confirmation filter
+          Now: SSF50 breakout + RSI14 > RSI14_MA(14)  ← confirmation gate
+
+          The RSI14 > RSI14_MA gate ensures momentum is genuinely rising before
+          entry, filtering out breakouts during weak/fading momentum phases.
+          Result: WR 77.8% (up from 46.4%), Exp +52.7% (up from +10.1%).
+
+        Universe  : All ETFs from master ETF list — no pre-filter applied
+        Setup     : Previous weekly close was below SSF50
+        Entry     : Current weekly close crosses above SSF50
+                  + RSI14 > RSI14_MA(14)   ← Modified-1 confirmation gate
+        Exit      : MANUAL — no automated exit signal
+                    (trader monitors and exits based on own judgement)
+
+        Run on: FRIDAY EOD (after weekly candle closes)  or  MONDAY pre-open.
+        Signal date = Friday's date (closing date of the weekly bar).
         """
         signals = []
         try:
@@ -661,53 +682,47 @@ class SignalEngine:
             if df_w is None or len(df_w) < 55:
                 return []
 
-            from src.indicators import ssf, ema_tv
+            from src.indicators import ssf, rsi, rsi_ma
 
             close_w = df_w["close"]
 
-            ssf50  = ssf(close_w, 50)
-            ema10  = ema_tv(close_w, 10)
-            ema20  = ema_tv(close_w, 20)
+            ssf50    = ssf(close_w, 50)
+            rsi14    = rsi(close_w, 14)
+            rsi14_ma = rsi_ma(rsi14, 14)
 
-            close_now   = close_w.iloc[-1]
-            close_prev  = close_w.iloc[-2]
-            ssf50_now   = ssf50.iloc[-1]
-            ssf50_prev  = ssf50.iloc[-2]
-            ema10_now   = ema10.iloc[-1]
-            ema10_prev  = ema10.iloc[-2]
-            ema20_now   = ema20.iloc[-1]
-            ema20_prev  = ema20.iloc[-2]
+            close_now    = close_w.iloc[-1]
+            close_prev   = close_w.iloc[-2]
+            ssf50_now    = ssf50.iloc[-1]
+            ssf50_prev   = ssf50.iloc[-2]
+            rsi14_now    = rsi14.iloc[-1]
+            rsi14_ma_now = rsi14_ma.iloc[-1]
 
             signal_date = str(df_w["date"].iloc[-1])[:10]
 
             indicator_snapshot = {
-                "close_weekly": round(close_now, 2),
-                "SSF50_weekly": round(ssf50_now, 2),
-                "EMA10_weekly": round(ema10_now, 2),
-                "EMA20_weekly": round(ema20_now, 2),
+                "close_weekly":    round(close_now, 2),
+                "SSF50_weekly":    round(ssf50_now, 2),
+                "RSI14_weekly":    round(rsi14_now, 2),
+                "RSI14_MA_weekly": round(rsi14_ma_now, 2),
+                "variant":         "Modified-1",
             }
 
-            # ── Signal A: SSF50 structural breakout ──────────────────────────
-            setup_a = close_prev < ssf50_prev
-            entry_a = setup_a and (close_now > ssf50_now)
-            if entry_a:
-                signals.append(self._signal_record(
-                    ticker, "S5_weekly_etf_breakout", "Weekly ETF Breakout",
-                    "BUY", signal_date, indicator_snapshot,
-                    ["price_crossed_above_SSF50_weekly"],
-                    extra={"entry_signal": "A_SSF50_Breakout", "exit_type": "MANUAL"},
-                ))
+            # ── Setup: prev week close below SSF50 ───────────────────────────
+            setup_ok = close_prev < ssf50_prev
 
-            # ── Signal B: EMA10/20 crossover (independent) ───────────────────
-            setup_b = ema10_prev < ema20_prev
-            entry_b = setup_b and (ema10_now > ema20_now)
-            if entry_b:
-                signals.append(self._signal_record(
-                    ticker, "S5_weekly_etf_breakout", "Weekly ETF Breakout",
-                    "BUY", signal_date, indicator_snapshot,
-                    ["EMA10_crossed_above_EMA20_weekly"],
-                    extra={"entry_signal": "B_EMA_Crossover", "exit_type": "MANUAL"},
-                ))
+            if setup_ok:
+                # ── Entry: SSF50 breakout + RSI14 > RSI14_MA ─────────────────
+                c1_price_breakout = (close_prev < ssf50_prev) and (close_now > ssf50_now)
+                c2_rsi_rising     = rsi14_now > rsi14_ma_now   # Modified-1 gate
+
+                if c1_price_breakout and c2_rsi_rising:
+                    signals.append(self._signal_record(
+                        ticker, "S5_weekly_etf_breakout", "Weekly ETF Breakout [Mod-1]",
+                        "BUY", signal_date, indicator_snapshot,
+                        ["price_crossed_above_SSF50_weekly",
+                         "RSI14_above_RSI14_MA"],
+                        extra={"exit_type": "MANUAL"},
+                    ))
 
         except Exception as e:
             log.error(f"S5 error for {ticker}: {e}", exc_info=True)
