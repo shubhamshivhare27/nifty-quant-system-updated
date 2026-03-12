@@ -81,7 +81,9 @@
         "conditions": [
           {"indicator": "RSI14", "timeframe": "monthly", "operator": ">", "value": 60},
           {"indicator": "RSI14", "timeframe": "weekly",  "operator": ">", "value": 60},
-          {"indicator": "RSI14", "timeframe": "daily",   "operator": ">", "value": 60}
+          {"indicator": "RSI14", "timeframe": "daily",   "operator": ">", "value": 60},
+          {"indicator": "mcap_cr", "timeframe": "static", "operator": ">=", "value": 75000,
+           "description": "MCap >= Rs75,000 Cr — confirmed optimal via backtest 2020-2026, wins all 3 composite scores vs 50k and 1L. MaxDD halved vs 50k (-34.5% vs -60.2%)."}
         ]
       },
 
@@ -151,7 +153,7 @@
       "type": "breakout",
       "signal_timeframe": "monthly",
       "universe": "stocks",
-      "description": "Early structural reversal on monthly chart. Stock was deep in downtrend below SSF50/200/250, now breaks above SSF50 with RSI and MACD confirmation.",
+      "description": "Early structural reversal on monthly chart. Stock was deep in downtrend below SSF50/200/250, now breaks above SSF50 with RSI and MACD confirmation. VARIANT: Option C (confirmed) — MACD line must also be above zero.",
 
       "universe_filter": {
         "operator": "NONE",
@@ -173,6 +175,7 @@
       "entry_signal": {
         "operator": "AND",
         "timeframe": "monthly",
+        "variant": "C",
         "conditions": [
           {
             "type": "crossover_above",
@@ -193,6 +196,13 @@
             "operator": ">",
             "compare_to": "MACD_signal",
             "description": "MACD Line above Signal Line"
+          },
+          {
+            "type": "comparison",
+            "indicator": "MACD_line",
+            "operator": ">",
+            "value": 0,
+            "description": "MACD Line must be above zero — Option C gate. Prevents entries during bounces from deeply negative MACD. Reduced avg MaxDD from -47.5% to -7.6% across 14 rolling periods."
           }
         ]
       },
@@ -228,7 +238,7 @@
       "type": "breakout",
       "signal_timeframe": "weekly",
       "universe": "stocks",
-      "description": "Early structural reversal on weekly chart. Stock breaks above SSF50 after being below SSF50/200/250, confirmed by RSI above its MA and MACD positive crossover.",
+      "description": "Early structural reversal on weekly chart. Stock breaks above SSF50 after being below it, confirmed by RSI above its MA and MACD positive crossover with both lines above zero. VARIANT: Option D (confirmed) — setup requires only SSF50, not SSF200/SSF250.",
 
       "universe_filter": {
         "operator": "NONE",
@@ -236,14 +246,14 @@
       },
 
       "setup_conditions": {
-        "operator": "AND",
+        "operator": "SINGLE",
         "timeframe": "weekly",
         "look_at": "previous_bar",
-        "description": "All three must have been true at PREVIOUS weekly close",
+        "variant": "D",
+        "description": "Only SSF50 required — SSF200 and SSF250 no longer gate the setup. Relaxing from triple-SSF (Option B) to single-SSF (Option D) increased signals 6.7x, WR from 14.3% to 46.8%, and made strategy profitable in 14/14 rolling periods.",
         "conditions": [
-          {"indicator": "close", "operator": "<", "compare_to": "SSF50",  "bar": "prev"},
-          {"indicator": "close", "operator": "<", "compare_to": "SSF200", "bar": "prev"},
-          {"indicator": "close", "operator": "<", "compare_to": "SSF250", "bar": "prev"}
+          {"indicator": "close", "operator": "<", "compare_to": "SSF50", "bar": "prev",
+           "description": "Previous week close below SSF50 only — SSF200 and SSF250 no longer required"}
         ]
       },
 
@@ -305,7 +315,8 @@
       },
 
       "notes": [
-        "SSF200 and SSF250 setup only — not checked during entry week",
+        "OPTION D: setup requires prev close < SSF50 ONLY — SSF200 and SSF250 removed from setup gate",
+        "SSF200 and SSF250 still computed and logged in indicator snapshot for reference",
         "MACD crossover must happen THIS week — previous week above signal = no signal",
         "MACD Line > 0 AND Signal Line > 0 both required for entry",
         "RSI14 STRICTLY > SMA(RSI14,14) — equal values = not satisfied",
@@ -397,6 +408,14 @@
     "monthly_run": "last_friday_of_month_2130_IST"
   },
 
-  "version": "1.0",
-  "last_updated": "2026-03-10"
+  "version": "2.0",
+  "last_updated": "2026-03-12",
+  "changelog": {
+    "2.0": [
+      "S2: MCap filter updated from Rs50k Cr to Rs75k Cr — confirmed optimal via 2020-2026 validation. Wins all 3 composite scores (Old/V2/V3). MaxDD halved vs 50k.",
+      "S3: Variant updated from Option B to Option C — added MACD line > 0 as 4th entry condition. Avg MaxDD reduced from -47.5% to -7.6% across 14 rolling periods.",
+      "S4: Variant updated from Option B to Option D — setup relaxed to SSF50 only (removed SSF200/SSF250). Profitable 14/14 rolling periods. WR 46.8% vs 14.3% prior.",
+      "S1: UNCHANGED — logic frozen as designed. RSI triple-AND gate kept intentionally."
+    ]
+  }
 }
