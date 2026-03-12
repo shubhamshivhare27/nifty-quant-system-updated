@@ -8,26 +8,50 @@
       "signal_timeframe": "monthly",
       "universe": "stocks",
       "description": "Monthly EMA20 breakout on trending stocks. Requires RSI > 60 on all three timeframes and full EMA alignment before entry.",
-
       "universe_filter": {
         "operator": "AND",
         "conditions": [
-          {"indicator": "RSI14", "timeframe": "monthly", "operator": ">", "value": 60},
-          {"indicator": "RSI14", "timeframe": "weekly",  "operator": ">", "value": 60},
-          {"indicator": "RSI14", "timeframe": "daily",   "operator": ">", "value": 60}
+          {
+            "indicator": "RSI14",
+            "timeframe": "monthly",
+            "operator": ">",
+            "value": 60
+          },
+          {
+            "indicator": "RSI14",
+            "timeframe": "weekly",
+            "operator": ">",
+            "value": 60
+          },
+          {
+            "indicator": "RSI14",
+            "timeframe": "daily",
+            "operator": ">",
+            "value": 60
+          }
         ]
       },
-
       "setup_conditions": {
         "operator": "AND",
         "timeframe": "monthly",
         "conditions": [
-          {"indicator": "EMA10", "operator": ">", "compare_to": "EMA20"},
-          {"indicator": "EMA20", "operator": ">", "compare_to": "EMA50"},
-          {"indicator": "close", "operator": ">", "compare_to": "EMA50"}
+          {
+            "indicator": "EMA10",
+            "operator": ">",
+            "compare_to": "EMA20"
+          },
+          {
+            "indicator": "EMA20",
+            "operator": ">",
+            "compare_to": "EMA50"
+          },
+          {
+            "indicator": "close",
+            "operator": ">",
+            "compare_to": "EMA50"
+          }
         ]
       },
-
       "entry_signal": {
         "operator": "SINGLE",
         "timeframe": "monthly",
@@ -40,7 +64,6 @@
           }
         ]
       },
-
       "exit_signal": {
         "operator": "SINGLE",
         "timeframe": "monthly",
@@ -50,23 +73,39 @@
             "fast": "EMA10",
             "slow": "EMA20",
             "additional": [
-              {"indicator": "EMA10_slope", "operator": "<", "value": 0},
-              {"indicator": "EMA20_slope", "operator": "<", "value": 0}
+              {
+                "indicator": "EMA10_slope",
+                "operator": "<",
+                "value": 0
+              },
+              {
+                "indicator": "EMA20_slope",
+                "operator": "<",
+                "value": 0
+              }
             ],
             "description": "EMA10 crosses below EMA20 with both slopes downward"
           }
         ]
       },
-
       "indicators_required": {
-        "daily":   ["RSI14"],
-        "weekly":  ["RSI14"],
-        "monthly": ["RSI14", "EMA10", "EMA20", "EMA50", "EMA10_slope", "EMA20_slope"]
+        "daily": [
+          "RSI14"
+        ],
+        "weekly": [
+          "RSI14"
+        ],
+        "monthly": [
+          "RSI14",
+          "EMA10",
+          "EMA20",
+          "EMA50",
+          "EMA10_slope",
+          "EMA20_slope"
+        ]
       },
-
       "companion_strategy": "S2_weekly_ema_pullback"
     },
-
     {
       "id": "S2_weekly_ema_pullback",
       "name": "Weekly EMA10/20 Pullback Cross",
@@ -75,37 +114,65 @@
       "signal_timeframe": "weekly",
       "universe": "stocks",
       "description": "Catches the next weekly pullback entry after a Strategy 1 monthly entry was missed. Operates only within the Strategy 1 monthly uptrend window.",
-
       "universe_filter": {
         "operator": "AND",
         "conditions": [
-          {"indicator": "RSI14", "timeframe": "monthly", "operator": ">", "value": 60},
-          {"indicator": "RSI14", "timeframe": "weekly",  "operator": ">", "value": 60},
-          {"indicator": "RSI14", "timeframe": "daily",   "operator": ">", "value": 60},
-          {"indicator": "mcap_cr", "timeframe": "static", "operator": ">=", "value": 75000,
-           "description": "MCap >= Rs75,000 Cr — confirmed optimal via backtest 2020-2026, wins all 3 composite scores vs 50k and 1L. MaxDD halved vs 50k (-34.5% vs -60.2%)."}
+          {
+            "indicator": "RSI14",
+            "timeframe": "monthly",
+            "operator": ">",
+            "value": 60
+          },
+          {
+            "indicator": "RSI14",
+            "timeframe": "weekly",
+            "operator": ">",
+            "value": 60
+          },
+          {
+            "indicator": "RSI14",
+            "timeframe": "daily",
+            "operator": ">",
+            "value": 60
+          },
+          {
+            "indicator": "mcap_cr",
+            "timeframe": "static",
+            "operator": ">=",
+            "value": 75000,
+            "description": "MCap >= Rs75,000 Cr \u2014 confirmed optimal via backtest 2020-2026, wins all 3 composite scores vs 50k and 1L. MaxDD halved vs 50k (-34.5% vs -60.2%)."
+          }
         ]
       },
-
       "monthly_preconditions": {
         "operator": "AND",
         "timeframe": "monthly",
         "description": "Must be true on monthly chart at time of weekly signal evaluation",
         "conditions": [
-          {"indicator": "EMA10", "operator": ">", "compare_to": "EMA20"},
-          {"indicator": "EMA20", "operator": ">", "compare_to": "EMA50"}
+          {
+            "indicator": "EMA10",
+            "operator": ">",
+            "compare_to": "EMA20"
+          },
+          {
+            "indicator": "EMA20",
+            "operator": ">",
+            "compare_to": "EMA50"
+          }
         ]
       },
-
       "setup_conditions": {
         "operator": "SINGLE",
         "timeframe": "weekly",
         "conditions": [
-          {"indicator": "EMA10", "operator": "<", "compare_to": "EMA20",
-           "description": "EMA10 was below EMA20 last week (pullback state)"}
+          {
+            "indicator": "EMA10",
+            "operator": "<",
+            "compare_to": "EMA20",
+            "description": "EMA10 was below EMA20 last week (pullback state)"
+          }
         ]
       },
-
       "entry_signal": {
         "operator": "SINGLE",
         "timeframe": "weekly",
@@ -114,11 +181,10 @@
             "type": "crossover_above",
             "fast": "EMA10",
             "slow": "EMA20",
-            "description": "EMA10 crosses above EMA20 on weekly chart — pullback ended"
+            "description": "EMA10 crosses above EMA20 on weekly chart \u2014 pullback ended"
           }
         ]
       },
-
       "exit_signal": {
         "operator": "SINGLE",
         "timeframe": "weekly",
@@ -131,21 +197,29 @@
           }
         ]
       },
-
       "indicators_required": {
-        "daily":   ["RSI14"],
-        "weekly":  ["RSI14", "EMA10", "EMA20"],
-        "monthly": ["RSI14", "EMA10", "EMA20", "EMA50"]
+        "daily": [
+          "RSI14"
+        ],
+        "weekly": [
+          "RSI14",
+          "EMA10",
+          "EMA20"
+        ],
+        "monthly": [
+          "RSI14",
+          "EMA10",
+          "EMA20",
+          "EMA50"
+        ]
       },
-
       "notes": [
-        "RSI filter is universe/entry filter only — RSI drop does NOT trigger exit",
+        "RSI filter is universe/entry filter only \u2014 RSI drop does NOT trigger exit",
         "Monthly pre-condition checked at time of weekly signal evaluation",
         "Can be held simultaneously with Strategy 1 on same stock",
-        "Weekly EMA50 NOT used — EMA50 referenced only on monthly"
+        "Weekly EMA50 NOT used \u2014 EMA50 referenced only on monthly"
       ]
     },
-
     {
       "id": "S3_monthly_ssf50_breakout",
       "name": "Monthly SSF50 Breakout",
@@ -153,25 +227,37 @@
       "type": "breakout",
       "signal_timeframe": "monthly",
       "universe": "stocks",
-      "description": "Early structural reversal on monthly chart. Stock was deep in downtrend below SSF50/200/250, now breaks above SSF50 with RSI and MACD confirmation. VARIANT: Option C (confirmed) — MACD line must also be above zero.",
-
+      "description": "Early structural reversal on monthly chart. Stock was deep in downtrend below SSF50/200/250, now breaks above SSF50 with RSI and MACD confirmation. VARIANT: Option C (confirmed) \u2014 MACD line must also be above zero.",
       "universe_filter": {
         "operator": "NONE",
         "description": "All stocks from master list are eligible"
       },
-
       "setup_conditions": {
         "operator": "AND",
         "timeframe": "monthly",
         "look_at": "previous_bar",
         "description": "All three must have been true at PREVIOUS monthly close",
         "conditions": [
-          {"indicator": "close", "operator": "<", "compare_to": "SSF50",  "bar": "prev"},
-          {"indicator": "close", "operator": "<", "compare_to": "SSF200", "bar": "prev"},
-          {"indicator": "close", "operator": "<", "compare_to": "SSF250", "bar": "prev"}
+          {
+            "indicator": "close",
+            "operator": "<",
+            "compare_to": "SSF50",
+            "bar": "prev"
+          },
+          {
+            "indicator": "close",
+            "operator": "<",
+            "compare_to": "SSF200",
+            "bar": "prev"
+          },
+          {
+            "indicator": "close",
+            "operator": "<",
+            "compare_to": "SSF250",
+            "bar": "prev"
+          }
         ]
       },
-
       "entry_signal": {
         "operator": "AND",
         "timeframe": "monthly",
@@ -202,11 +288,10 @@
             "indicator": "MACD_line",
             "operator": ">",
             "value": 0,
-            "description": "MACD Line must be above zero — Option C gate. Prevents entries during bounces from deeply negative MACD. Reduced avg MaxDD from -47.5% to -7.6% across 14 rolling periods."
+            "description": "MACD Line must be above zero \u2014 Option C gate. Prevents entries during bounces from deeply negative MACD. Reduced avg MaxDD from -47.5% to -7.6% across 14 rolling periods."
           }
         ]
       },
-
       "exit_signal": {
         "operator": "SINGLE",
         "timeframe": "monthly",
@@ -219,18 +304,24 @@
           }
         ]
       },
-
       "indicators_required": {
-        "monthly": ["SSF50", "SSF200", "SSF250", "RSI14", "RSI14_MA", "MACD_line", "MACD_signal", "MACD_hist"]
+        "monthly": [
+          "SSF50",
+          "SSF200",
+          "SSF250",
+          "RSI14",
+          "RSI14_MA",
+          "MACD_line",
+          "MACD_signal",
+          "MACD_hist"
+        ]
       },
-
       "notes": [
-        "SSF200 and SSF250 are setup conditions only — their position vs price during entry month NOT checked",
+        "SSF200 and SSF250 are setup conditions only \u2014 their position vs price during entry month NOT checked",
         "RSI confirmation: RSI14 STRICTLY > SMA(RSI14,14). Equal values = condition NOT satisfied",
-        "Exit only when MACD bearish crossover happens — not if already below signal last month"
+        "Exit only when MACD bearish crossover happens \u2014 not if already below signal last month"
       ]
     },
-
     {
       "id": "S4_weekly_ssf50_breakout",
       "name": "Weekly SSF50 Breakout",
@@ -238,25 +329,27 @@
       "type": "breakout",
       "signal_timeframe": "weekly",
       "universe": "stocks",
-      "description": "Early structural reversal on weekly chart. Stock breaks above SSF50 after being below it, confirmed by RSI above its MA and MACD positive crossover with both lines above zero. VARIANT: Option D (confirmed) — setup requires only SSF50, not SSF200/SSF250.",
-
+      "description": "Early structural reversal on weekly chart. Stock breaks above SSF50 after being below it, confirmed by RSI above its MA and MACD positive crossover with both lines above zero. VARIANT: Option D (confirmed) \u2014 setup requires only SSF50, not SSF200/SSF250.",
       "universe_filter": {
         "operator": "NONE",
         "description": "All stocks from master list are eligible"
       },
-
       "setup_conditions": {
         "operator": "SINGLE",
         "timeframe": "weekly",
         "look_at": "previous_bar",
         "variant": "D",
-        "description": "Only SSF50 required — SSF200 and SSF250 no longer gate the setup. Relaxing from triple-SSF (Option B) to single-SSF (Option D) increased signals 6.7x, WR from 14.3% to 46.8%, and made strategy profitable in 14/14 rolling periods.",
+        "description": "Only SSF50 required \u2014 SSF200 and SSF250 no longer gate the setup. Relaxing from triple-SSF (Option B) to single-SSF (Option D) increased signals 6.7x, WR from 14.3% to 46.8%, and made strategy profitable in 14/14 rolling periods.",
         "conditions": [
-          {"indicator": "close", "operator": "<", "compare_to": "SSF50", "bar": "prev",
-           "description": "Previous week close below SSF50 only — SSF200 and SSF250 no longer required"}
+          {
+            "indicator": "close",
+            "operator": "<",
+            "compare_to": "SSF50",
+            "bar": "prev",
+            "description": "Previous week close below SSF50 only \u2014 SSF200 and SSF250 no longer required"
+          }
         ]
       },
-
       "entry_signal": {
         "operator": "AND",
         "timeframe": "weekly",
@@ -296,7 +389,6 @@
           }
         ]
       },
-
       "exit_signal": {
         "operator": "SINGLE",
         "timeframe": "weekly",
@@ -309,113 +401,139 @@
           }
         ]
       },
-
       "indicators_required": {
-        "weekly": ["SSF50", "SSF200", "SSF250", "RSI14", "RSI14_MA", "MACD_line", "MACD_signal", "MACD_hist"]
+        "weekly": [
+          "SSF50",
+          "SSF200",
+          "SSF250",
+          "RSI14",
+          "RSI14_MA",
+          "MACD_line",
+          "MACD_signal",
+          "MACD_hist"
+        ]
       },
-
       "notes": [
-        "OPTION D: setup requires prev close < SSF50 ONLY — SSF200 and SSF250 removed from setup gate",
+        "OPTION D: setup requires prev close < SSF50 ONLY \u2014 SSF200 and SSF250 removed from setup gate",
         "SSF200 and SSF250 still computed and logged in indicator snapshot for reference",
-        "MACD crossover must happen THIS week — previous week above signal = no signal",
+        "MACD crossover must happen THIS week \u2014 previous week above signal = no signal",
         "MACD Line > 0 AND Signal Line > 0 both required for entry",
-        "RSI14 STRICTLY > SMA(RSI14,14) — equal values = not satisfied",
-        "Exit only on MACD bearish crossover week — not if already below signal"
+        "RSI14 STRICTLY > SMA(RSI14,14) \u2014 equal values = not satisfied",
+        "Exit only on MACD bearish crossover week \u2014 not if already below signal"
       ]
     },
-
     {
       "id": "S5_weekly_etf_breakout",
-      "name": "Weekly ETF Breakout",
+      "name": "Weekly ETF SSF50 Breakout",
       "enabled": true,
       "type": "breakout",
       "signal_timeframe": "weekly",
       "universe": "etfs",
-      "description": "Two independent entry signals on all ETFs: SSF50 structural breakout (Signal A) OR EMA10/20 crossover (Signal B). Manual exit only.",
-
+      "variant": "Modified-1",
+      "description": "SSF50 structural breakout on ETFs, confirmed by RSI14 > RSI14_MA. CONFIRMED Modified-1 \u2014 WR 77.8%, Exp +52.7%, CAGR +109.4%, MaxDD -9.72% (2023-2026, 12 ETFs). Manual exit only.",
       "universe_filter": {
         "operator": "NONE",
-        "description": "All ETFs from the master ETF list — no indicator filtering"
+        "description": "All ETFs from the master ETF list \u2014 no indicator pre-filtering"
       },
-
-      "entry_signals": [
-        {
-          "signal_id": "A",
-          "label": "SSF50 Structural Breakout",
-          "setup_conditions": {
-            "operator": "SINGLE",
-            "timeframe": "weekly",
-            "look_at": "previous_bar",
-            "conditions": [
-              {"indicator": "close", "operator": "<", "compare_to": "SSF50", "bar": "prev",
-               "description": "Previous week close was below SSF50"}
-            ]
-          },
-          "entry": {
+      "setup_conditions": {
+        "operator": "SINGLE",
+        "timeframe": "weekly",
+        "look_at": "previous_bar",
+        "conditions": [
+          {
+            "indicator": "close",
+            "operator": "<",
+            "compare_to": "SSF50",
+            "bar": "prev",
+            "description": "Previous weekly close was below SSF50"
+          }
+        ]
+      },
+      "entry_signal": {
+        "operator": "AND",
+        "timeframe": "weekly",
+        "variant": "Modified-1",
+        "conditions": [
+          {
             "type": "crossover_above",
             "fast": "close",
             "slow": "SSF50",
-            "timeframe": "weekly",
             "description": "Current weekly close crosses above SSF50"
-          }
-        },
-        {
-          "signal_id": "B",
-          "label": "Weekly EMA10/20 Crossover",
-          "setup_conditions": {
-            "operator": "SINGLE",
-            "timeframe": "weekly",
-            "look_at": "previous_bar",
-            "conditions": [
-              {"indicator": "EMA10", "operator": "<", "compare_to": "EMA20", "bar": "prev",
-               "description": "EMA10 was below EMA20 last week"}
-            ]
           },
-          "entry": {
-            "type": "crossover_above",
-            "fast": "EMA10",
-            "slow": "EMA20",
-            "timeframe": "weekly",
-            "description": "EMA10 crosses above EMA20 on weekly chart"
+          {
+            "type": "comparison",
+            "indicator": "RSI14",
+            "operator": ">",
+            "compare_to": "RSI14_MA",
+            "description": "RSI14 strictly greater than SMA(RSI14, 14) \u2014 Modified-1 confirmation gate. Ensures momentum is genuinely rising. Lifted WR from 46.4% to 77.8%."
           }
-        }
-      ],
-
+        ]
+      },
       "exit_signal": {
         "type": "manual",
         "description": "No automated exit. All exits managed manually by the trader."
       },
-
       "indicators_required": {
-        "weekly": ["SSF50", "EMA10", "EMA20"]
+        "weekly": [
+          "SSF50",
+          "RSI14",
+          "RSI14_MA"
+        ]
       },
-
+      "backtest_results": {
+        "window_2023_2026": {
+          "trades": 18,
+          "win_rate_pct": 77.8,
+          "expectancy_pct": 52.71,
+          "cagr_pct": 109.4,
+          "max_dd_pct": -9.72,
+          "profit_factor": 78.37,
+          "v3_score": 4747.6
+        },
+        "window_2020_2022": {
+          "trades": 23,
+          "win_rate_pct": 56.5,
+          "expectancy_pct": 33.04,
+          "cagr_pct": 104.9,
+          "max_dd_pct": -61.07,
+          "profit_factor": 9.63,
+          "v3_score": 52.5
+        }
+      },
       "notes": [
-        "Signal A and Signal B are fully independent — both can fire same week",
-        "If both fire in same week, TWO separate entries recorded",
-        "SSF50 setup condition applies ONLY to Signal A — Signal B has no SSF dependency",
-        "No RSI or MACD confirmation required for either signal",
-        "No automated exit — positions remain open until manually closed",
-        "ETF removed from master list while held → flag for manual review"
+        "Modified-1 confirmed: SSF50 breakout + RSI14 > RSI14_MA \u2014 only this signal",
+        "Signal B (EMA10/20 crossover) is NOT part of this strategy",
+        "RSI14_MA = SMA(RSI14, 14) \u2014 rolling 14-period average of RSI14",
+        "No automated exit \u2014 positions remain open until manually closed",
+        "ETF removed from master list while held \u2192 flag for manual review"
       ]
     }
   ],
-
   "run_schedule": {
-    "weekly_strategies":  ["S2_weekly_ema_pullback", "S4_weekly_ssf50_breakout", "S5_weekly_etf_breakout"],
-    "monthly_strategies": ["S1_monthly_ema20_breakout", "S3_monthly_ssf50_breakout"],
-    "weekly_run":  "every_friday_2130_IST",
+    "weekly_strategies": [
+      "S2_weekly_ema_pullback",
+      "S4_weekly_ssf50_breakout",
+      "S5_weekly_etf_breakout"
+    ],
+    "monthly_strategies": [
+      "S1_monthly_ema20_breakout",
+      "S3_monthly_ssf50_breakout"
+    ],
+    "weekly_run": "every_friday_2130_IST",
     "monthly_run": "last_friday_of_month_2130_IST"
   },
-
-  "version": "2.0",
+  "version": "2.1",
   "last_updated": "2026-03-12",
   "changelog": {
     "2.0": [
-      "S2: MCap filter updated from Rs50k Cr to Rs75k Cr — confirmed optimal via 2020-2026 validation. Wins all 3 composite scores (Old/V2/V3). MaxDD halved vs 50k.",
-      "S3: Variant updated from Option B to Option C — added MACD line > 0 as 4th entry condition. Avg MaxDD reduced from -47.5% to -7.6% across 14 rolling periods.",
-      "S4: Variant updated from Option B to Option D — setup relaxed to SSF50 only (removed SSF200/SSF250). Profitable 14/14 rolling periods. WR 46.8% vs 14.3% prior.",
-      "S1: UNCHANGED — logic frozen as designed. RSI triple-AND gate kept intentionally."
+      "S2: MCap filter updated from Rs50k Cr to Rs75k Cr \u2014 confirmed optimal via 2020-2026 validation. Wins all 3 composite scores (Old/V2/V3). MaxDD halved vs 50k.",
+      "S3: Variant updated from Option B to Option C \u2014 added MACD line > 0 as 4th entry condition. Avg MaxDD reduced from -47.5% to -7.6% across 14 rolling periods.",
+      "S4: Variant updated from Option B to Option D \u2014 setup relaxed to SSF50 only (removed SSF200/SSF250). Profitable 14/14 rolling periods. WR 46.8% vs 14.3% prior.",
+      "S1: UNCHANGED \u2014 logic frozen as designed. RSI triple-AND gate kept intentionally."
+    ],
+    "2.1": [
+      "S5: Modified-1 confirmed \u2014 SSF50 breakout + RSI14 > RSI14_MA. WR 77.8%, Exp +52.7%, CAGR +109.4%, MaxDD -9.72% (2023-2026). Signal B (EMA crossover) removed from live logic.",
+      "S5: Indicators updated \u2014 SSF50 + RSI14 + RSI14_MA only (EMA10/EMA20 no longer required)"
     ]
   }
 }
