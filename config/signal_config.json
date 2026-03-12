@@ -522,7 +522,7 @@
     "weekly_run": "every_friday_2130_IST",
     "monthly_run": "last_friday_of_month_2130_IST"
   },
-  "version": "2.1",
+  "version": "2.4",
   "last_updated": "2026-03-12",
   "changelog": {
     "2.0": [
@@ -534,6 +534,15 @@
     "2.1": [
       "S5: Modified-1 confirmed \u2014 SSF50 breakout + RSI14 > RSI14_MA. WR 77.8%, Exp +52.7%, CAGR +109.4%, MaxDD -9.72% (2023-2026). Signal B (EMA crossover) removed from live logic.",
       "S5: Indicators updated \u2014 SSF50 + RSI14 + RSI14_MA only (EMA10/EMA20 no longer required)"
+    ],
+    "2.2": [
+      "S2: Exit condition changed \u2014 was EMA10 crosses below EMA20, now weekly close crosses below EMA10. Earlier exit gives tighter stops and lets profits run longer before trend confirmation breaks."
+    ],
+    "2.3": [
+      "S2: Exit now OR of two conditions \u2014 (A) EMA10 crosses below EMA20, OR (B) weekly close crosses below EMA10, whichever fires first. Tighter stop when price breaks EMA10 before EMA10/20 cross occurs."
+    ],
+    "2.4": [
+      "S2: Exit finalised \u2014 EMA10 crosses below EMA20 (weekly). Clean and symmetric with the entry condition (EMA10 crosses above EMA20). Previous experimental exits (close < EMA10, OR logic) removed."
     ]
   }
 }
