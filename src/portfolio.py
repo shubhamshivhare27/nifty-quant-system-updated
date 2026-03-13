@@ -1,17 +1,18 @@
 """
 portfolio.py
-------------
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Syncs current Upstox portfolio holdings.
+Uses upstox_auth.get_valid_token() — auto-refreshes if expired.
 
 Provides:
-  - get_portfolio_tickers()    → set of SYMBOL.NS tickers currently held
-  - get_removed_tickers()      → tickers in portfolio but NOT in current sheet
-  - get_portfolio_details()    → full holdings with qty, avg_cost, current price, P&L
+  get_portfolio_details()   → full holdings DataFrame
+  get_portfolio_tickers()   → set of SYMBOL.NS tickers currently held
+  get_removed_tickers()     → held tickers NOT in current sheet
+  save_portfolio_snapshot() → saves to data/portfolio_snapshot.csv
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
-import os
 import logging
-import requests
 import pandas as pd
 from datetime import datetime
 from pathlib import Path
@@ -19,35 +20,50 @@ from pathlib import Path
 log = logging.getLogger("portfolio")
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
-
-
-def _get_upstox_token() -> str | None:
-    token = os.environ.get("UPSTOX_TOKEN", "").strip()
-    return token if token else None
+DATA_DIR.mkdir(exist_ok=True)
 
 
 def get_portfolio_details() -> pd.DataFrame:
     """
     Fetch current Upstox holdings via the portfolio API.
-    Returns DataFrame with: ticker, company_name, qty, avg_cost, ltp, pnl, pnl_pct, days_held
+    Auto-refreshes access token if expired.
 
-    Falls back to empty DataFrame on failure (graceful degradation).
+    Returns DataFrame: ticker, company_name, qty, avg_cost, ltp, pnl_inr, pnl_pct
+    Raises ValueError with clear message on any failure.
     """
-    token = _get_upstox_token()
-    if not token:
-        log.warning("No UPSTOX_TOKEN — returning empty portfolio.")
-        return pd.DataFrame()
+    import requests
+    from src.upstox_auth import get_valid_token, is_connected
+
+    # Check if OAuth is set up at all
+    if not is_connected():
+        raise ValueError(
+            "Upstox is not connected. "
+            "Go to the Portfolio page and click 'Connect Upstox' to complete the one-time login."
+        )
+
+    # Get valid token (auto-refreshes if needed)
+    token = get_valid_token()
 
     try:
-        url = "https://api.upstox.com/v2/portfolio/long-term-holdings"
+        url     = "https://api.upstox.com/v2/portfolio/long-term-holdings"
         headers = {
             "Authorization": f"Bearer {token}",
-            "Accept": "application/json",
+            "Accept":        "application/json",
         }
         resp = requests.get(url, headers=headers, timeout=30)
+
+        if resp.status_code == 401:
+            raise ValueError(
+                "Upstox token is invalid or expired (401). "
+                "The auto-refresh may have failed — try clicking 'Connect Upstox' again."
+            )
+        if resp.status_code == 403:
+            raise ValueError(
+                "Permission denied (403). "
+                "Ensure your Upstox app has 'holdings' scope enabled."
+            )
         if resp.status_code != 200:
-            log.warning(f"Upstox portfolio API returned {resp.status_code}: {resp.text[:200]}")
-            return pd.DataFrame()
+            raise ValueError(f"Upstox API error {resp.status_code}: {resp.text[:300]}")
 
         data = resp.json().get("data", [])
         if not data:
@@ -61,43 +77,43 @@ def get_portfolio_details() -> pd.DataFrame:
             qty     = float(item.get("quantity", 0))
             avg     = float(item.get("average_price", 0))
             ltp     = float(item.get("last_price", 0))
-            pnl     = (ltp - avg) * qty
-            pnl_pct = ((ltp - avg) / avg * 100) if avg > 0 else 0
+            pnl     = round((ltp - avg) * qty, 2)
+            pnl_pct = round((ltp - avg) / avg * 100, 2) if avg > 0 else 0.0
 
             rows.append({
-                "ticker":       ticker,
-                "company_name": item.get("company_name", symbol),
-                "qty":          qty,
-                "avg_cost":     round(avg, 2),
-                "ltp":          round(ltp, 2),
-                "pnl_inr":      round(pnl, 2),
-                "pnl_pct":      round(pnl_pct, 2),
-                "isin":         item.get("isin", ""),
+                "ticker":        ticker,
+                "company_name":  item.get("company_name", symbol),
+                "qty":           qty,
+                "avg_cost":      round(avg, 2),
+                "ltp":           round(ltp, 2),
+                "pnl_inr":       pnl,
+                "pnl_pct":       pnl_pct,
+                "isin":          item.get("isin", ""),
             })
 
         df = pd.DataFrame(rows)
         log.info(f"Portfolio synced: {len(df)} holdings.")
         return df
 
+    except ValueError:
+        raise
     except Exception as e:
-        log.error(f"Portfolio sync failed: {e}", exc_info=True)
-        return pd.DataFrame()
+        raise ValueError(f"Portfolio sync failed: {e}") from e
 
 
-def get_portfolio_tickers() -> set[str]:
-    """Returns set of SYMBOL.NS tickers currently held in Upstox."""
-    df = get_portfolio_details()
-    if df.empty:
+def get_portfolio_tickers() -> set:
+    """Returns set of SYMBOL.NS tickers currently held."""
+    try:
+        df = get_portfolio_details()
+        return set(df["ticker"].tolist()) if not df.empty else set()
+    except Exception:
         return set()
-    return set(df["ticker"].tolist())
 
 
-def get_removed_tickers(sheet_tickers: set[str]) -> set[str]:
+def get_removed_tickers(sheet_tickers: set) -> set:
     """
-    Returns tickers that are currently held in Upstox portfolio
-    but have been REMOVED from the Google Sheet master list.
-
-    These must still be evaluated for EXIT signals (Holding Protection Rule).
+    Returns tickers held in Upstox that have been removed from the Google Sheet.
+    These still need EXIT signal evaluation (Holding Protection Rule).
     """
     portfolio = get_portfolio_tickers()
     removed   = portfolio - sheet_tickers
