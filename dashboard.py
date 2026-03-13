@@ -33,11 +33,32 @@ log = logging.getLogger("dashboard")
 # ── Inject Streamlit secrets into os.environ ──────────────────────────────────
 try:
     for _key in ["GOOGLE_SHEETS_CREDENTIALS", "UPSTOX_TOKEN", "UPSTOX_API_KEY",
-                 "GMAIL_USER", "GMAIL_PASS", "RECIPIENT_EMAIL"]:
+                 "UPSTOX_API_SECRET", "UPSTOX_REDIRECT_URI", "UPSTOX_REFRESH_TOKEN",
+                 "UPSTOX_TOKEN_EXPIRY", "GMAIL_USER", "GMAIL_PASS", "RECIPIENT_EMAIL"]:
         if _key in st.secrets and _key not in os.environ:
             os.environ[_key] = str(st.secrets[_key])
 except Exception:
     pass
+
+# ── Handle Upstox OAuth callback (?code=AUTH_CODE in URL) ─────────────────────
+_qp = st.query_params
+if "code" in _qp:
+    _auth_code = _qp["code"]
+    try:
+        from src.upstox_auth import exchange_code_for_tokens
+        _tokens = exchange_code_for_tokens(_auth_code)
+        st.success("✅ Upstox connected! Copy these values to your Streamlit secrets:")
+        _lines = [
+            'UPSTOX_TOKEN         = "' + _tokens["access_token"]  + '"',
+            'UPSTOX_REFRESH_TOKEN = "' + _tokens["refresh_token"] + '"',
+            'UPSTOX_TOKEN_EXPIRY  = "' + _tokens["expires_at"]    + '"',
+        ]
+        st.code(chr(10).join(_lines), language="toml")
+        st.info("After adding to secrets, redeploy the app and you will be fully connected.")
+        st.stop()
+    except Exception as _e:
+        st.error(f"OAuth callback failed: {_e}")
+        st.stop()
 
 # ── Page config ────────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -652,20 +673,65 @@ elif page == "💼 Portfolio":
     </div>
     """, unsafe_allow_html=True)
 
-    if st.button("🔄 Sync Upstox Holdings"):
-        with st.spinner("Syncing portfolio …"):
+    # ── Upstox connection status + OAuth login ────────────────────────────────
+    try:
+        from src.upstox_auth import is_connected, get_login_url, credentials_complete
+        _connected = is_connected()
+    except Exception:
+        _connected = False
+        credentials_complete = lambda: False
+
+    if not _connected:
+        st.warning("⚠️ Upstox is not connected. Complete the one-time login below.")
+        if credentials_complete():
             try:
-                from src.portfolio import get_portfolio_details, save_portfolio_snapshot
-                df_port = get_portfolio_details()
-                save_portfolio_snapshot(df_port)
-                st.success(f"✅ Synced {len(df_port)} holdings.")
-                st.cache_data.clear()
-                st.rerun()
-            except ValueError as e:
-                # Clear, actionable error — token missing / expired / wrong scope
-                st.error(f"⚠️ {e}")
-            except Exception as e:
-                st.error(f"Sync failed: {e}")
+                _login_url = get_login_url()
+                st.markdown(
+                    f"""<a href="{_login_url}" target="_self"
+                        style="display:inline-block;padding:10px 24px;background:#2563EB;
+                               color:white;border-radius:8px;font-weight:600;
+                               text-decoration:none;font-size:14px;">
+                        🔗 Connect Upstox (one-time login)
+                    </a>""",
+                    unsafe_allow_html=True
+                )
+                st.caption(
+                    "You will be redirected to Upstox login. "
+                    "After login, you will be returned here automatically."
+                )
+            except Exception as _e:
+                st.error(f"Cannot generate login URL: {_e}")
+        else:
+            st.error(
+                "UPSTOX_API_KEY and UPSTOX_API_SECRET are not set in Streamlit secrets. "
+                "Add them first, then redeploy."
+            )
+    else:
+        col_sync, col_reconnect = st.columns([3, 1])
+        with col_sync:
+            if st.button("🔄 Sync Upstox Holdings"):
+                with st.spinner("Syncing portfolio …"):
+                    try:
+                        from src.portfolio import get_portfolio_details, save_portfolio_snapshot
+                        df_port = get_portfolio_details()
+                        save_portfolio_snapshot(df_port)
+                        st.success(f"✅ Synced {len(df_port)} holdings.")
+                        st.cache_data.clear()
+                        st.rerun()
+                    except ValueError as e:
+                        st.error(f"⚠️ {e}")
+                    except Exception as e:
+                        st.error(f"Sync failed: {e}")
+        with col_reconnect:
+            if st.button("🔁 Re-authenticate"):
+                try:
+                    _login_url = get_login_url()
+                    st.markdown(
+                        f'<meta http-equiv="refresh" content="0; url={_login_url}">',
+                        unsafe_allow_html=True
+                    )
+                except Exception as _e:
+                    st.error(f"{_e}")
 
     portfolio = load_portfolio()
     stocks, _ = load_universe()
@@ -1034,14 +1100,22 @@ elif page == "🔔 Alerts & Automation":
     st.divider()
     section("Required GitHub Secrets")
     secrets_data = {
-        "Secret":   ["UPSTOX_TOKEN", "UPSTOX_API_KEY", "GMAIL_USER", "GMAIL_PASS",
-                     "RECIPIENT_EMAIL", "GOOGLE_SHEETS_CREDENTIALS", "DASHBOARD_URL"],
-        "Purpose":  ["Upstox access token (refresh daily)", "Upstox API key",
+        "Secret":   ["UPSTOX_API_KEY", "UPSTOX_API_SECRET", "UPSTOX_REDIRECT_URI",
+                     "UPSTOX_REFRESH_TOKEN", "UPSTOX_TOKEN", "UPSTOX_TOKEN_EXPIRY",
+                     "GMAIL_USER", "GMAIL_PASS", "RECIPIENT_EMAIL",
+                     "GOOGLE_SHEETS_CREDENTIALS", "DASHBOARD_URL"],
+        "Purpose":  ["Upstox app API key", "Upstox app API secret",
+                     "Your app URL (e.g. https://your-app.streamlit.app)",
+                     "Set automatically after first OAuth login",
+                     "Access token — auto-refreshed daily",
+                     "Token expiry timestamp — auto-updated",
                      "Gmail sender address", "Gmail app password",
-                     "Email recipient", "Google service account JSON for Sheets API",
-                     "Streamlit dashboard URL included in email reports"],
-        "Required": ["✅ Yes", "✅ Yes", "✅ Yes", "✅ Yes",
-                     "✅ Yes", "Optional", "Optional"],
+                     "Email recipient", "Google service account JSON",
+                     "Streamlit dashboard URL for email reports"],
+        "Required": ["✅ Yes", "✅ Yes", "✅ Yes",
+                     "⚡ Auto-set", "⚡ Auto-refreshed", "⚡ Auto-updated",
+                     "✅ Yes", "✅ Yes", "✅ Yes",
+                     "Optional", "Optional"],
     }
     st.dataframe(pd.DataFrame(secrets_data), use_container_width=True, hide_index=True)
 
