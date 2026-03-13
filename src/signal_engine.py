@@ -491,7 +491,8 @@ class SignalEngine:
 
             if setup_ok:
                 # ── Entry conditions (Option C) ───────────────────────────────
-                c1_price_breakout  = (close_prev < ssf50_prev) and (close_now > ssf50_now)
+                SSF_BUFFER = 0.003  # 0.3% buffer — eliminates marginal crossovers from data-source noise
+                c1_price_breakout  = (close_prev < ssf50_prev) and (close_now > ssf50_now * (1 + SSF_BUFFER))
                 c2_rsi_rising      = rsi14_now > rsi14_ma_now
                 c3_macd_above_sig  = macd_line_now > macd_sig_now
                 c4_macd_above_zero = macd_line_now > 0    # ← Option C new gate
@@ -601,7 +602,8 @@ class SignalEngine:
 
             if setup_ok:
                 # ── Entry conditions (Option D) ───────────────────────────────
-                c1_price_breakout = (close_prev < ssf50_prev) and (close_now > ssf50_now)
+                SSF_BUFFER = 0.003  # 0.3% buffer — eliminates marginal crossovers from data-source noise
+                c1_price_breakout = (close_prev < ssf50_prev) and (close_now > ssf50_now * (1 + SSF_BUFFER))
                 c2_rsi_rising     = rsi14_now > rsi14_ma_now
                 c3_macd_above_sig = macd_line_now > macd_sig_now
                 c4_both_positive  = macd_line_now > 0 and macd_sig_now > 0  # both > 0
@@ -699,7 +701,8 @@ class SignalEngine:
 
             if setup_ok:
                 # ── Entry: SSF50 breakout + RSI14 > RSI14_MA ─────────────────
-                c1_price_breakout = (close_prev < ssf50_prev) and (close_now > ssf50_now)
+                SSF_BUFFER = 0.003  # 0.3% buffer — eliminates marginal crossovers from data-source noise
+                c1_price_breakout = (close_prev < ssf50_prev) and (close_now > ssf50_now * (1 + SSF_BUFFER))
                 c2_rsi_rising     = rsi14_now > rsi14_ma_now   # Modified-1 gate
 
                 if c1_price_breakout and c2_rsi_rising:
