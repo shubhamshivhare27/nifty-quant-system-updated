@@ -661,6 +661,9 @@ elif page == "💼 Portfolio":
                 st.success(f"✅ Synced {len(df_port)} holdings.")
                 st.cache_data.clear()
                 st.rerun()
+            except ValueError as e:
+                # Clear, actionable error — token missing / expired / wrong scope
+                st.error(f"⚠️ {e}")
             except Exception as e:
                 st.error(f"Sync failed: {e}")
 
