@@ -7,7 +7,7 @@ Pages:
   1 — Live Signals 📡
   2 — Strategy Configuration ⚙️
   3 — Portfolio & Holdings 💼
-  4 — Master Universe 📋  (live Google Sheet view)
+  4 — Master Universe 📋
   5 — Backtest 📊
   6 — Alerts & Automation 🔔
 
@@ -30,7 +30,7 @@ import os
 
 log = logging.getLogger("dashboard")
 
-# ── Inject Streamlit secrets into os.environ so all modules can read them ─────
+# ── Inject Streamlit secrets into os.environ ──────────────────────────────────
 try:
     for _key in ["GOOGLE_SHEETS_CREDENTIALS", "UPSTOX_TOKEN", "UPSTOX_API_KEY",
                  "GMAIL_USER", "GMAIL_PASS", "RECIPIENT_EMAIL"]:
@@ -47,53 +47,236 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── Custom CSS — dark professional theme ──────────────────────────────────────
+# ── Design system: clean light/neutral professional theme ─────────────────────
+# Palette:
+#   Background:  #F7F8FA  (off-white, easy on eyes)
+#   Surface:     #FFFFFF  (card backgrounds)
+#   Border:      #E2E6ED
+#   Text primary:#14181F  (near-black)
+#   Text secondary:#5A6478
+#   Accent:      #2563EB  (clear blue)
+#   BUY green:   #16A34A
+#   SELL red:    #DC2626
+#   Warning:     #D97706
+
 st.markdown("""
 <style>
-  /* Base */
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+
   html, body, [class*="css"] {
-    background-color: #0f1117 !important;
-    color: #e0e0e0 !important;
-    font-family: 'Inter', sans-serif;
+    background-color: #F7F8FA !important;
+    color: #14181F !important;
+    font-family: 'DM Sans', sans-serif !important;
   }
-  .stApp { background-color: #0f1117; }
+  .stApp { background-color: #F7F8FA !important; }
 
-  /* Sidebar */
+  /* ── Sidebar ── */
   section[data-testid="stSidebar"] {
-    background-color: #13131f !important;
-    border-right: 1px solid #1e1e2e;
+    background-color: #14181F !important;
+    border-right: none !important;
+  }
+  section[data-testid="stSidebar"] * {
+    color: #E2E6ED !important;
+  }
+  section[data-testid="stSidebar"] .stRadio label {
+    color: #CBD2DC !important;
+    font-size: 14px !important;
+    padding: 6px 0 !important;
+  }
+  section[data-testid="stSidebar"] .stRadio label:hover {
+    color: #FFFFFF !important;
+  }
+  section[data-testid="stSidebar"] hr {
+    border-color: #2A3040 !important;
   }
 
-  /* Metric cards */
+  /* ── Metric cards ── */
   [data-testid="metric-container"] {
-    background: #1a1a2e;
-    border: 1px solid #2a2a4e;
-    border-radius: 8px;
-    padding: 12px;
+    background: #FFFFFF !important;
+    border: 1px solid #E2E6ED !important;
+    border-radius: 10px !important;
+    padding: 16px !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;
+  }
+  [data-testid="metric-container"] label {
+    color: #5A6478 !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.5px !important;
+    text-transform: uppercase !important;
+  }
+  [data-testid="metric-container"] [data-testid="stMetricValue"] {
+    color: #14181F !important;
+    font-size: 28px !important;
+    font-weight: 700 !important;
   }
 
-  /* Tables */
-  .dataframe { background: #13131f !important; color: #e0e0e0 !important; }
+  /* ── Page title ── */
+  h1 {
+    color: #14181F !important;
+    font-size: 24px !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.3px !important;
+    padding-bottom: 4px !important;
+  }
+  h2, h3 {
+    color: #14181F !important;
+    font-weight: 600 !important;
+  }
 
-  /* Buttons */
+  /* ── Dataframe / table ── */
+  .stDataFrame {
+    border: 1px solid #E2E6ED !important;
+    border-radius: 10px !important;
+    overflow: hidden !important;
+  }
+  .stDataFrame thead th {
+    background: #F0F2F7 !important;
+    color: #5A6478 !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+  }
+  .stDataFrame tbody td {
+    color: #14181F !important;
+    font-size: 13px !important;
+    font-family: 'DM Mono', monospace !important;
+  }
+  .stDataFrame tbody tr:hover {
+    background: #F0F5FF !important;
+  }
+
+  /* ── Buttons ── */
   .stButton > button {
-    background: #7c83fd;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    font-weight: 600;
+    background: #2563EB !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    font-size: 13px !important;
+    padding: 8px 18px !important;
+    box-shadow: 0 1px 3px rgba(37,99,235,0.3) !important;
   }
-  .stButton > button:hover { background: #5c63dd; }
+  .stButton > button:hover {
+    background: #1D4ED8 !important;
+    box-shadow: 0 2px 6px rgba(37,99,235,0.4) !important;
+  }
 
-  /* Tab styling */
-  .stTabs [data-baseweb="tab-list"] { background: #13131f; border-radius: 8px; }
-  .stTabs [data-baseweb="tab"] { color: #aaa; }
-  .stTabs [aria-selected="true"] { color: #7c83fd !important; }
+  /* ── Tabs ── */
+  .stTabs [data-baseweb="tab-list"] {
+    background: #FFFFFF !important;
+    border-bottom: 2px solid #E2E6ED !important;
+    border-radius: 0 !important;
+    gap: 0 !important;
+  }
+  .stTabs [data-baseweb="tab"] {
+    color: #5A6478 !important;
+    font-weight: 500 !important;
+    font-size: 14px !important;
+    padding: 10px 20px !important;
+    border-bottom: 2px solid transparent !important;
+    margin-bottom: -2px !important;
+  }
+  .stTabs [aria-selected="true"] {
+    color: #2563EB !important;
+    border-bottom: 2px solid #2563EB !important;
+    font-weight: 700 !important;
+  }
 
-  /* Signal badges */
-  .buy-badge  { background:#00e676;color:#000;padding:2px 8px;border-radius:4px;font-weight:bold;font-size:12px; }
-  .sell-badge { background:#ff5252;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;font-size:12px; }
-  .warn-badge { background:#ffd740;color:#000;padding:2px 8px;border-radius:4px;font-weight:bold;font-size:11px; }
+  /* ── Expander ── */
+  .streamlit-expanderHeader {
+    background: #FFFFFF !important;
+    border: 1px solid #E2E6ED !important;
+    border-radius: 8px !important;
+    color: #14181F !important;
+    font-weight: 600 !important;
+  }
+  .streamlit-expanderContent {
+    background: #FFFFFF !important;
+    border: 1px solid #E2E6ED !important;
+    border-top: none !important;
+    border-radius: 0 0 8px 8px !important;
+  }
+
+  /* ── Selectbox / inputs ── */
+  .stSelectbox > div > div,
+  .stTextInput > div > div > input {
+    background: #FFFFFF !important;
+    border: 1px solid #D1D9E6 !important;
+    border-radius: 8px !important;
+    color: #14181F !important;
+    font-size: 13px !important;
+  }
+
+  /* ── Alert / info boxes ── */
+  .stAlert {
+    border-radius: 8px !important;
+    font-size: 13px !important;
+  }
+
+  /* ── Badge helpers ── */
+  .badge-buy  { background:#DCFCE7; color:#15803D; padding:3px 10px; border-radius:20px; font-weight:700; font-size:12px; }
+  .badge-sell { background:#FEE2E2; color:#DC2626; padding:3px 10px; border-radius:20px; font-weight:700; font-size:12px; }
+  .badge-warn { background:#FEF3C7; color:#B45309; padding:3px 10px; border-radius:20px; font-weight:600; font-size:11px; }
+  .badge-info { background:#DBEAFE; color:#1D4ED8; padding:3px 10px; border-radius:20px; font-weight:600; font-size:11px; }
+
+  /* ── Card component ── */
+  .card {
+    background: #FFFFFF;
+    border: 1px solid #E2E6ED;
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  }
+  .card-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #5A6478;
+    margin-bottom: 6px;
+  }
+  .card-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: #14181F;
+  }
+  .card-green { border-left: 4px solid #16A34A; }
+  .card-red   { border-left: 4px solid #DC2626; }
+  .card-blue  { border-left: 4px solid #2563EB; }
+  .card-amber { border-left: 4px solid #D97706; }
+
+  /* ── Page header strip ── */
+  .page-header {
+    background: #FFFFFF;
+    border-bottom: 1px solid #E2E6ED;
+    padding: 16px 0 14px 0;
+    margin-bottom: 24px;
+  }
+  .page-header h1 { margin: 0 !important; }
+  .page-subtitle {
+    color: #5A6478;
+    font-size: 13px;
+    margin-top: 2px;
+  }
+
+  /* ── Divider ── */
+  hr { border-color: #E2E6ED !important; }
+
+  /* ── Checkbox ── */
+  .stCheckbox label { color: #14181F !important; font-size: 13px !important; }
+
+  /* ── Slider ── */
+  .stSlider label { color: #14181F !important; font-size: 13px !important; }
+
+  /* ── Radio ── */
+  .stRadio label { color: #14181F !important; }
+
+  /* Remove Streamlit watermark */
+  #MainMenu, footer { visibility: hidden; }
+  header { visibility: hidden; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -103,55 +286,53 @@ DATA_DIR   = ROOT / "data"
 SIGNAL_DIR = ROOT / "signals"
 CONFIG_DIR = ROOT / "config"
 
+DASHBOARD_URL = os.environ.get(
+    "DASHBOARD_URL",
+    "https://nifty-quant-system-updated-afqpypkjc7xdpnefsq8d3i.streamlit.app"
+)
 
-# ── Data loaders ──────────────────────────────────────────────────────────────
+# ── Data loaders ───────────────────────────────────────────────────────────────
 
 @st.cache_data(ttl=300)
 def load_universe() -> tuple[pd.DataFrame, pd.DataFrame]:
-    stock_path = DATA_DIR / "stock_universe.csv"
-    etf_path   = DATA_DIR / "etf_universe.csv"
-    stocks = pd.read_csv(stock_path) if stock_path.exists() else pd.DataFrame()
-    etfs   = pd.read_csv(etf_path)   if etf_path.exists()   else pd.DataFrame()
+    stocks = pd.read_csv(DATA_DIR / "stock_universe.csv") if (DATA_DIR / "stock_universe.csv").exists() else pd.DataFrame()
+    etfs   = pd.read_csv(DATA_DIR / "etf_universe.csv")   if (DATA_DIR / "etf_universe.csv").exists()   else pd.DataFrame()
     return stocks, etfs
-
 
 @st.cache_data(ttl=300)
 def load_latest_signals() -> dict[str, pd.DataFrame]:
     result = {}
     for key in ["weekly_buy", "weekly_sell", "monthly_buy", "monthly_sell"]:
         files = sorted(SIGNAL_DIR.glob(f"{key}_*.csv"), reverse=True)
-        if files:
-            result[key] = pd.read_csv(files[0])
-        else:
-            result[key] = pd.DataFrame()
+        result[key] = pd.read_csv(files[0]) if files else pd.DataFrame()
     return result
-
 
 @st.cache_data(ttl=300)
 def load_universe_changes() -> pd.DataFrame:
     path = DATA_DIR / "universe_changes.csv"
     return pd.read_csv(path) if path.exists() else pd.DataFrame()
 
-
 @st.cache_data(ttl=60)
 def load_portfolio() -> pd.DataFrame:
     path = DATA_DIR / "portfolio_snapshot.csv"
     return pd.read_csv(path) if path.exists() else pd.DataFrame()
 
-
 @st.cache_data(ttl=3600)
 def load_signal_config() -> dict:
     path = CONFIG_DIR / "signal_config.json"
-    if path.exists():
-        with open(path) as f:
-            return json.load(f)
-    return {}
+    return json.load(open(path)) if path.exists() else {}
 
 
-# ── Sidebar navigation ─────────────────────────────────────────────────────────
+# ── Sidebar ────────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("## 📊 Nifty 500\nSignal Engine")
-    st.divider()
+    st.markdown("""
+    <div style='padding: 20px 8px 16px 8px;'>
+      <div style='font-size:18px;font-weight:700;color:#FFFFFF;letter-spacing:-0.3px;'>
+        📊 Nifty 500
+      </div>
+      <div style='font-size:12px;color:#8899AA;margin-top:2px;'>Signal Engine</div>
+    </div>
+    """, unsafe_allow_html=True)
 
     page = st.radio(
         "Navigate",
@@ -170,23 +351,35 @@ with st.sidebar:
     if not stocks.empty and "_fetched_at" in stocks.columns:
         fetch_time = stocks["_fetched_at"].iloc[0]
 
-    st.markdown(f"**Universe**")
-    st.markdown(f"🏢 Stocks: `{len(stocks)}`")
-    st.markdown(f"📈 ETFs:   `{len(etfs)}`")
-    if fetch_time:
-        st.markdown(f"🕐 Synced: `{fetch_time[:16]}`")
+    st.markdown(f"""
+    <div style='font-size:12px;color:#8899AA;line-height:2;padding:0 4px;'>
+      <div><span style='color:#CBD2DC;font-weight:600;'>Stocks</span>&nbsp;&nbsp;{len(stocks)}</div>
+      <div><span style='color:#CBD2DC;font-weight:600;'>ETFs</span>&nbsp;&nbsp;&nbsp;&nbsp;{len(etfs)}</div>
+      {'<div><span style="color:#CBD2DC;font-weight:600;">Synced</span>&nbsp;&nbsp;' + fetch_time[:16] + '</div>' if fetch_time else ''}
+    </div>
+    """, unsafe_allow_html=True)
 
     st.divider()
-    if st.button("🔄 Sync Universe Now"):
-        with st.spinner("Fetching Google Sheet ..."):
+    if st.button("🔄 Sync Universe"):
+        with st.spinner("Fetching Google Sheet …"):
             try:
                 from src.universe_loader import run as refresh
                 summary = refresh()
-                st.success(f"✅ Synced: {summary['stock_count']} stocks, {summary['etf_count']} ETFs")
+                st.success(f"✅ {summary['stock_count']} stocks, {summary['etf_count']} ETFs")
                 st.cache_data.clear()
                 st.rerun()
             except Exception as e:
                 st.error(f"Sync failed: {e}")
+
+
+# ── Helper: section card ───────────────────────────────────────────────────────
+def section(title: str, color: str = "blue"):
+    st.markdown(f"""
+    <div style='display:flex;align-items:center;gap:10px;margin:24px 0 14px 0;'>
+      <div style='width:4px;height:20px;background:{"#16A34A" if color=="green" else "#DC2626" if color=="red" else "#D97706" if color=="amber" else "#2563EB"};border-radius:2px;'></div>
+      <span style='font-size:15px;font-weight:700;color:#14181F;'>{title}</span>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -194,20 +387,25 @@ with st.sidebar:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 if page == "📡 Live Signals":
-    st.title("📡 Live Signals")
+    st.markdown("""
+    <div class='page-header'>
+      <h1>📡 Live Signals</h1>
+      <div class='page-subtitle'>Most recent signal run — updated every Friday after market close</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    signals = load_latest_signals()
+    signals   = load_latest_signals()
     portfolio = load_portfolio()
     portfolio_tickers = set(portfolio["ticker"].tolist()) if not portfolio.empty else set()
 
-    # Summary metrics
+    # ── Metric row ────────────────────────────────────────────────────────────
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Weekly BUY",   len(signals["weekly_buy"]))
-    c2.metric("Weekly SELL",  len(signals["weekly_sell"]))
-    c3.metric("Monthly BUY",  len(signals["monthly_buy"]))
-    c4.metric("Monthly SELL", len(signals["monthly_sell"]))
+    c1.metric("Weekly BUY",   len(signals["weekly_buy"]),   delta=None)
+    c2.metric("Weekly SELL",  len(signals["weekly_sell"]),  delta=None)
+    c3.metric("Monthly BUY",  len(signals["monthly_buy"]),  delta=None)
+    c4.metric("Monthly SELL", len(signals["monthly_sell"]), delta=None)
 
-    # Removed holdings warning
+    # ── Removed holdings warning ──────────────────────────────────────────────
     changes = load_universe_changes()
     if not changes.empty:
         removed = changes[changes["change_type"] == "REMOVED"]["ticker"].tolist()
@@ -215,7 +413,7 @@ if page == "📡 Live Signals":
         if held_removed:
             st.error(f"⚠️ **Holdings removed from master sheet but still held:** {', '.join(held_removed)}")
 
-    # Strategy filter
+    # ── Signal table ──────────────────────────────────────────────────────────
     all_sigs = pd.concat([
         signals["weekly_buy"],  signals["weekly_sell"],
         signals["monthly_buy"], signals["monthly_sell"],
@@ -224,9 +422,13 @@ if page == "📡 Live Signals":
     if all_sigs.empty:
         st.info("No signals found. Run the signal engine or check back on Friday.")
     else:
-        strategies = ["All"] + sorted(all_sigs["strategy_name"].unique().tolist()) if "strategy_name" in all_sigs.columns else ["All"]
-        sig_type   = st.selectbox("Signal Type", ["All", "BUY", "SELL"])
-        strategy   = st.selectbox("Strategy",    strategies)
+        section("Filter Signals")
+        f1, f2 = st.columns(2)
+        with f1:
+            sig_type = st.selectbox("Signal Type", ["All", "BUY", "SELL"])
+        with f2:
+            strategies = ["All"] + sorted(all_sigs["strategy_name"].unique().tolist()) if "strategy_name" in all_sigs.columns else ["All"]
+            strategy = st.selectbox("Strategy", strategies)
 
         filtered = all_sigs.copy()
         if sig_type != "All":
@@ -234,97 +436,98 @@ if page == "📡 Live Signals":
         if strategy != "All" and "strategy_name" in filtered.columns:
             filtered = filtered[filtered["strategy_name"] == strategy]
 
-        # Highlight portfolio holdings
         if "ticker" in filtered.columns and portfolio_tickers:
-            filtered["in_portfolio"] = filtered["ticker"].apply(
-                lambda t: "💼" if t in portfolio_tickers else ""
-            )
+            filtered["in_portfolio"] = filtered["ticker"].apply(lambda t: "💼" if t in portfolio_tickers else "")
+
+        section("Signals Table")
+
+        # Colour signal_type column
+        def style_signals(df):
+            styles = pd.DataFrame("", index=df.index, columns=df.columns)
+            if "signal_type" in df.columns:
+                styles["signal_type"] = df["signal_type"].apply(
+                    lambda v: "background-color:#DCFCE7;color:#15803D;font-weight:700;"
+                    if v == "BUY" else "background-color:#FEE2E2;color:#DC2626;font-weight:700;"
+                )
+            return styles
 
         st.dataframe(
-            filtered,
+            filtered.style.apply(style_signals, axis=None),
             use_container_width=True,
             hide_index=True,
+            height=400,
         )
 
-        # Chart popup
-        st.subheader("📈 Chart Viewer")
+        # ── Chart viewer ─────────────────────────────────────────────────────
+        section("Chart Viewer")
         if "ticker" in filtered.columns and not filtered.empty:
-            selected_ticker = st.selectbox("Select ticker for chart", filtered["ticker"].unique())
-            tf = st.radio("Timeframe", ["weekly", "monthly", "daily"], horizontal=True)
+            ch1, ch2, ch3 = st.columns([2, 1, 1])
+            with ch1:
+                selected_ticker = st.selectbox("Ticker", filtered["ticker"].unique())
+            with ch2:
+                tf = st.radio("Timeframe", ["weekly", "monthly", "daily"], horizontal=True)
+            with ch3:
+                st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+                load_chart = st.button("Load Chart")
 
-            if st.button("Load Chart"):
-                with st.spinner(f"Loading {selected_ticker} ({tf}) ..."):
+            if load_chart:
+                with st.spinner(f"Loading {selected_ticker} ({tf}) …"):
                     try:
                         from src.data_fetcher import fetch_ohlcv
                         from src.indicators   import compute_all
-
                         df_chart = fetch_ohlcv(selected_ticker, tf, lookback_years=2)
                         if df_chart is not None:
                             df_chart = compute_all(df_chart, tf)
-
                             fig = make_subplots(
-                                rows=3, cols=1,
-                                shared_xaxes=True,
-                                row_heights=[0.6, 0.2, 0.2],
-                                vertical_spacing=0.03,
+                                rows=3, cols=1, shared_xaxes=True,
+                                row_heights=[0.6, 0.2, 0.2], vertical_spacing=0.03,
                             )
-
-                            # Candlestick
                             fig.add_trace(go.Candlestick(
                                 x=df_chart["date"], open=df_chart["open"],
                                 high=df_chart["high"], low=df_chart["low"],
                                 close=df_chart["close"], name="Price",
-                                increasing_line_color="#00e676",
-                                decreasing_line_color="#ff5252",
+                                increasing_line_color="#16A34A",
+                                decreasing_line_color="#DC2626",
                             ), row=1, col=1)
-
-                            # EMA overlays
-                            for ema_col, color in [("EMA10","#7c83fd"),("EMA20","#ffd740"),("EMA50","#ff9800")]:
+                            for ema_col, color in [("EMA10","#2563EB"),("EMA20","#D97706"),("EMA50","#7C3AED")]:
                                 if ema_col in df_chart.columns:
                                     fig.add_trace(go.Scatter(
                                         x=df_chart["date"], y=df_chart[ema_col],
-                                        name=ema_col, line=dict(color=color, width=1.2),
+                                        name=ema_col, line=dict(color=color, width=1.5),
                                     ), row=1, col=1)
-
-                            # SSF50
                             if "SSF50" in df_chart.columns:
                                 fig.add_trace(go.Scatter(
                                     x=df_chart["date"], y=df_chart["SSF50"],
-                                    name="SSF50", line=dict(color="#00bcd4", width=1.5, dash="dot"),
+                                    name="SSF50", line=dict(color="#0891B2", width=1.5, dash="dot"),
                                 ), row=1, col=1)
-
-                            # RSI
                             if "RSI14" in df_chart.columns:
                                 fig.add_trace(go.Scatter(
                                     x=df_chart["date"], y=df_chart["RSI14"],
-                                    name="RSI14", line=dict(color="#7c83fd", width=1.2),
+                                    name="RSI14", line=dict(color="#2563EB", width=1.5),
                                 ), row=2, col=1)
-                                fig.add_hline(y=60, line_dash="dash", line_color="#00e676", row=2, col=1)
-                                fig.add_hline(y=40, line_dash="dash", line_color="#ff5252", row=2, col=1)
-
-                            # MACD
+                                fig.add_hline(y=60, line_dash="dash", line_color="#16A34A", row=2, col=1)
+                                fig.add_hline(y=40, line_dash="dash", line_color="#DC2626", row=2, col=1)
                             if "MACD_line" in df_chart.columns:
                                 fig.add_trace(go.Scatter(
                                     x=df_chart["date"], y=df_chart["MACD_line"],
-                                    name="MACD", line=dict(color="#00e676", width=1),
+                                    name="MACD", line=dict(color="#16A34A", width=1.2),
                                 ), row=3, col=1)
                                 fig.add_trace(go.Scatter(
                                     x=df_chart["date"], y=df_chart["MACD_signal"],
-                                    name="Signal", line=dict(color="#ff9800", width=1),
+                                    name="Signal", line=dict(color="#D97706", width=1.2),
                                 ), row=3, col=1)
                                 fig.add_trace(go.Bar(
                                     x=df_chart["date"], y=df_chart["MACD_hist"],
-                                    name="Hist", marker_color="#7c83fd", opacity=0.5,
+                                    name="Hist", marker_color="#2563EB", opacity=0.4,
                                 ), row=3, col=1)
-
-                            # Mark BUY/SELL signals on chart
+                            # Signal markers
                             ticker_sigs = filtered[filtered["ticker"] == selected_ticker]
                             for _, sig in ticker_sigs.iterrows():
-                                sig_date = sig.get("date", "")
+                                sig_date     = sig.get("date", "")
                                 sig_type_val = sig.get("signal_type", "")
-                                color_sig = "#00e676" if sig_type_val == "BUY" else "#ff5252"
+                                color_sig  = "#16A34A" if sig_type_val == "BUY" else "#DC2626"
                                 symbol_sig = "triangle-up" if sig_type_val == "BUY" else "triangle-down"
-                                match_row = df_chart[df_chart["date"].astype(str).str.startswith(sig_date[:10])]
+                                match_row  = df_chart[df_chart["date"].astype(str).str.startswith(sig_date[:10])]
                                 if not match_row.empty:
                                     y_val = match_row["low"].iloc[0] * 0.99 if sig_type_val == "BUY" else match_row["high"].iloc[0] * 1.01
                                     fig.add_trace(go.Scatter(
@@ -335,14 +538,18 @@ if page == "📡 Live Signals":
                                     ), row=1, col=1)
 
                             fig.update_layout(
-                                template="plotly_dark",
-                                paper_bgcolor="#0f1117",
-                                plot_bgcolor="#0f1117",
-                                height=700,
-                                title=f"{selected_ticker} — {tf.capitalize()}",
+                                template="plotly_white",
+                                paper_bgcolor="#FFFFFF",
+                                plot_bgcolor="#FAFBFC",
+                                height=680,
+                                title=dict(text=f"{selected_ticker} — {tf.capitalize()}", font=dict(size=15, color="#14181F")),
                                 xaxis_rangeslider_visible=False,
                                 showlegend=True,
+                                legend=dict(bgcolor="#FFFFFF", bordercolor="#E2E6ED", borderwidth=1),
+                                font=dict(family="DM Sans", color="#14181F"),
                             )
+                            fig.update_xaxes(showgrid=True, gridcolor="#F0F2F7", linecolor="#E2E6ED")
+                            fig.update_yaxes(showgrid=True, gridcolor="#F0F2F7", linecolor="#E2E6ED")
                             st.plotly_chart(fig, use_container_width=True)
                         else:
                             st.error("Could not load price data.")
@@ -355,52 +562,80 @@ if page == "📡 Live Signals":
 # ═══════════════════════════════════════════════════════════════════════════════
 
 elif page == "⚙️ Strategy Config":
-    st.title("⚙️ Strategy Configuration")
+    st.markdown("""
+    <div class='page-header'>
+      <h1>⚙️ Strategy Configuration</h1>
+      <div class='page-subtitle'>Confirmed logic for all 5 strategies — S1 through S5</div>
+    </div>
+    """, unsafe_allow_html=True)
 
     cfg = load_signal_config()
     strategies = cfg.get("strategies", [])
 
+    # Strategy summary table
+    if strategies:
+        summary_rows = []
+        for s in strategies:
+            summary_rows.append({
+                "ID":        s["id"],
+                "Name":      s["name"],
+                "Timeframe": s.get("signal_timeframe", "").upper(),
+                "Universe":  s.get("universe", ""),
+                "Enabled":   "✅ Yes" if s.get("enabled") else "❌ No",
+            })
+        section("Strategy Overview")
+        st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
+
+    section("Strategy Details")
     for strat in strategies:
-        with st.expander(f"{'🟢' if strat.get('enabled') else '🔴'} {strat['name']} ({strat['signal_timeframe'].upper()})", expanded=False):
-            col1, col2 = st.columns([3, 1])
+        enabled_icon = "🟢" if strat.get("enabled") else "🔴"
+        with st.expander(f"{enabled_icon}  {strat['name']}  ({strat.get('signal_timeframe','').upper()})", expanded=False):
+
+            col1, col2 = st.columns([4, 1])
             with col1:
-                st.markdown(f"**Description:** {strat.get('description','')}")
-                st.markdown(f"**Type:** `{strat.get('type','')}` | **Universe:** `{strat.get('universe','')}`")
-                st.markdown(f"**Strategy ID:** `{strat['id']}`")
-
+                st.markdown(f"**{strat.get('description','')}**")
+                st.markdown(
+                    f"<span style='font-size:12px;color:#5A6478;'>ID: <code>{strat['id']}</code> &nbsp;|&nbsp; "
+                    f"Universe: <code>{strat.get('universe','')}</code></span>",
+                    unsafe_allow_html=True
+                )
             with col2:
-                enabled = st.toggle("Enabled", value=strat.get("enabled", True), key=f"toggle_{strat['id']}")
+                st.toggle("Enabled", value=strat.get("enabled", True), key=f"toggle_{strat['id']}")
 
-            st.divider()
-
-            # Show entry/exit in readable form
-            if strat.get("entry_signal"):
-                st.markdown("**Entry Signal:**")
-                entry = strat["entry_signal"]
-                for cond in entry.get("conditions", []):
-                    st.markdown(f"  - {cond.get('description', str(cond))}")
-
-            if strat.get("exit_signal"):
-                st.markdown("**Exit Signal:**")
-                exit_sig = strat["exit_signal"]
-                for cond in exit_sig.get("conditions", []):
-                    st.markdown(f"  - {cond.get('description', str(cond))}")
-                if exit_sig.get("type") == "manual":
-                    st.markdown("  - **Manual exit only** (no automated exit signal)")
-
-            if strat.get("notes"):
-                st.markdown("**Notes:**")
-                for note in strat["notes"]:
-                    st.markdown(f"  ℹ️ {note}")
+            st.markdown("---")
+            ic1, ic2 = st.columns(2)
+            with ic1:
+                if strat.get("universe_filter"):
+                    st.markdown("**Universe Filter**")
+                    for cond in strat["universe_filter"].get("conditions", []):
+                        st.markdown(f"- {cond.get('description', str(cond))}")
+                if strat.get("entry_signal"):
+                    st.markdown("**Entry Conditions**")
+                    for cond in strat["entry_signal"].get("conditions", []):
+                        st.markdown(f"- {cond.get('description', str(cond))}")
+            with ic2:
+                if strat.get("exit_signal"):
+                    st.markdown("**Exit Conditions**")
+                    exit_sig = strat["exit_signal"]
+                    if exit_sig.get("type") == "manual":
+                        st.markdown("- Manual exit only")
+                    for cond in exit_sig.get("conditions", []):
+                        st.markdown(f"- {cond.get('description', str(cond))}")
+                if strat.get("notes"):
+                    st.markdown("**Notes**")
+                    for note in strat["notes"]:
+                        st.markdown(f"- ℹ️ {note}")
 
     st.divider()
-    st.subheader("📝 Add / Edit Strategy in Plain English")
-    st.info("Describe your new strategy in plain English below and the system will parse it into a structured definition.")
-    user_strategy_text = st.text_area("Strategy description", height=150,
-        placeholder="e.g. On the weekly chart, buy when EMA10 crosses above EMA50 and RSI14 is above 50 ...")
+    section("Add / Edit Strategy in Plain English")
+    st.info("Describe a new strategy and the system will parse it into a structured definition.")
+    user_strategy_text = st.text_area(
+        "Strategy description", height=120,
+        placeholder="e.g. On the weekly chart, buy when EMA10 crosses above EMA50 and RSI14 is above 50 …"
+    )
     if st.button("Parse Strategy"):
         if user_strategy_text.strip():
-            st.warning("🚧 NLP parser (rule_parser.py) will process this. Integrate Claude API key to activate.")
+            st.warning("🚧 NLP parser — connect Claude API key to activate.")
         else:
             st.warning("Please enter a strategy description.")
 
@@ -410,10 +645,15 @@ elif page == "⚙️ Strategy Config":
 # ═══════════════════════════════════════════════════════════════════════════════
 
 elif page == "💼 Portfolio":
-    st.title("💼 Portfolio & Holdings")
+    st.markdown("""
+    <div class='page-header'>
+      <h1>💼 Portfolio & Holdings</h1>
+      <div class='page-subtitle'>Current Upstox positions synced from broker</div>
+    </div>
+    """, unsafe_allow_html=True)
 
     if st.button("🔄 Sync Upstox Holdings"):
-        with st.spinner("Syncing portfolio ..."):
+        with st.spinner("Syncing portfolio …"):
             try:
                 from src.portfolio import get_portfolio_details, save_portfolio_snapshot
                 df_port = get_portfolio_details()
@@ -431,28 +671,45 @@ elif page == "💼 Portfolio":
     if portfolio.empty:
         st.info("No portfolio data. Click 'Sync Upstox Holdings' to load your positions.")
     else:
-        # Flag removed holdings
         if "ticker" in portfolio.columns:
-            portfolio["in_sheet"] = portfolio["ticker"].apply(
-                lambda t: "✅" if t in sheet_tickers else "⚠️ Removed"
+            portfolio["In Sheet"] = portfolio["ticker"].apply(
+                lambda t: "✅ Active" if t in sheet_tickers else "⚠️ Removed"
             )
 
-        # Summary metrics
         if "pnl_inr" in portfolio.columns:
             total_invested = (portfolio["qty"] * portfolio["avg_cost"]).sum()
             total_current  = (portfolio["qty"] * portfolio["ltp"]).sum()
             total_pnl      = portfolio["pnl_inr"].sum()
             pnl_pct        = (total_pnl / total_invested * 100) if total_invested > 0 else 0
 
+            section("Summary")
             c1, c2, c3, c4 = st.columns(4)
-            c1.metric("Invested (₹)", f"₹{total_invested:,.0f}")
-            c2.metric("Current Value (₹)", f"₹{total_current:,.0f}")
-            c3.metric("Total P&L (₹)", f"₹{total_pnl:,.0f}", delta=f"{pnl_pct:.2f}%")
-            c4.metric("Positions", len(portfolio))
+            c1.metric("Invested",      f"₹{total_invested:,.0f}")
+            c2.metric("Current Value", f"₹{total_current:,.0f}")
+            c3.metric("Total P&L",     f"₹{total_pnl:,.0f}", delta=f"{pnl_pct:.2f}%")
+            c4.metric("Positions",     len(portfolio))
 
-        st.dataframe(portfolio, use_container_width=True, hide_index=True)
+        section("Holdings")
 
-        removed_held = portfolio[portfolio.get("in_sheet", pd.Series(["✅"] * len(portfolio))) == "⚠️ Removed"]
+        def style_portfolio(df):
+            styles = pd.DataFrame("", index=df.index, columns=df.columns)
+            if "pnl_inr" in df.columns:
+                styles["pnl_inr"] = df["pnl_inr"].apply(
+                    lambda v: "color:#16A34A;font-weight:600;" if float(v or 0) >= 0
+                    else "color:#DC2626;font-weight:600;"
+                )
+            if "In Sheet" in df.columns:
+                styles["In Sheet"] = df["In Sheet"].apply(
+                    lambda v: "color:#DC2626;font-weight:600;" if "Removed" in str(v) else "color:#16A34A;"
+                )
+            return styles
+
+        st.dataframe(
+            portfolio.style.apply(style_portfolio, axis=None),
+            use_container_width=True, hide_index=True, height=450,
+        )
+
+        removed_held = portfolio[portfolio.get("In Sheet", pd.Series(["✅ Active"] * len(portfolio))) == "⚠️ Removed"]
         if not removed_held.empty:
             st.error(f"⚠️ **{len(removed_held)} holdings removed from master sheet:** " +
                      ", ".join(removed_held["ticker"].tolist()))
@@ -463,11 +720,16 @@ elif page == "💼 Portfolio":
 # ═══════════════════════════════════════════════════════════════════════════════
 
 elif page == "📋 Master Universe":
-    st.title("📋 Master Universe")
+    st.markdown("""
+    <div class='page-header'>
+      <h1>📋 Master Universe</h1>
+      <div class='page-subtitle'>Live view of the Google Sheet — stocks and ETFs under coverage</div>
+    </div>
+    """, unsafe_allow_html=True)
 
     stocks, etfs = load_universe()
-    changes = load_universe_changes()
-    portfolio = load_portfolio()
+    changes      = load_universe_changes()
+    portfolio    = load_portfolio()
     portfolio_tickers = set(portfolio["ticker"].tolist()) if not portfolio.empty else set()
     signals = load_latest_signals()
     buy_tickers = set()
@@ -475,23 +737,24 @@ elif page == "📋 Master Universe":
         if not signals[key].empty and "ticker" in signals[key].columns:
             buy_tickers |= set(signals[key]["ticker"].tolist())
 
-    # ── Sync status panel ─────────────────────────────────────────────────────
+    # Status bar
     fetch_time = stocks["_fetched_at"].iloc[0] if not stocks.empty and "_fetched_at" in stocks.columns else "Unknown"
-    latest_change_run = changes["run_at"].iloc[-1][:16] if not changes.empty and "run_at" in changes.columns else "N/A"
+    latest_change = changes["run_at"].iloc[-1][:16] if not changes.empty and "run_at" in changes.columns else "N/A"
 
     st.markdown(f"""
-    <div style='background:#13131f;border-radius:8px;padding:16px;margin-bottom:16px;'>
-      <span style='color:#7c83fd;font-weight:bold;'>Last synced from Google Sheet:</span>
-      <span style='color:#e0e0e0;margin-left:8px;'>{fetch_time}</span>
-      &nbsp;|&nbsp;
-      <span style='color:#7c83fd;font-weight:bold;'>Stocks:</span>
-      <span style='color:#e0e0e0;margin-left:4px;'>{len(stocks)}</span>
-      &nbsp;|&nbsp;
-      <span style='color:#7c83fd;font-weight:bold;'>ETFs:</span>
-      <span style='color:#e0e0e0;margin-left:4px;'>{len(etfs)}</span>
-      &nbsp;|&nbsp;
-      <span style='color:#7c83fd;font-weight:bold;'>Last change run:</span>
-      <span style='color:#e0e0e0;margin-left:4px;'>{latest_change_run}</span>
+    <div style='background:#FFFFFF;border:1px solid #E2E6ED;border-radius:10px;
+                padding:14px 20px;margin-bottom:20px;display:flex;gap:32px;align-items:center;
+                box-shadow:0 1px 4px rgba(0,0,0,0.04);'>
+      <div><span style='font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#5A6478;'>Last Synced</span>
+           <div style='color:#14181F;font-size:13px;font-weight:600;margin-top:2px;'>{fetch_time[:16]}</div></div>
+      <div><span style='font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#5A6478;'>Stocks</span>
+           <div style='color:#14181F;font-size:20px;font-weight:700;margin-top:2px;'>{len(stocks)}</div></div>
+      <div><span style='font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#5A6478;'>ETFs</span>
+           <div style='color:#14181F;font-size:20px;font-weight:700;margin-top:2px;'>{len(etfs)}</div></div>
+      <div><span style='font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#5A6478;'>Active BUY Signals</span>
+           <div style='color:#16A34A;font-size:20px;font-weight:700;margin-top:2px;'>{len(buy_tickers)}</div></div>
+      <div><span style='font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#5A6478;'>Last Change Run</span>
+           <div style='color:#14181F;font-size:13px;font-weight:600;margin-top:2px;'>{latest_change}</div></div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -500,21 +763,25 @@ elif page == "📋 Master Universe":
         today_str = datetime.today().strftime("%Y-%m-%d")
         recent = changes[changes["run_at"].str.startswith(today_str)] if "run_at" in changes.columns else pd.DataFrame()
         if not recent.empty:
-            with st.expander(f"🔄 Changes since last run ({len(recent)})", expanded=True):
+            with st.expander(f"🔄 Changes today ({len(recent)})", expanded=True):
                 for _, row in recent.iterrows():
-                    ct = row["change_type"]
-                    color = "#00e676" if ct == "ADDED" else "#ff5252" if ct == "REMOVED" else "#ffd740"
+                    ct    = row["change_type"]
+                    bg    = "#DCFCE7" if ct == "ADDED" else "#FEE2E2" if ct == "REMOVED" else "#FEF3C7"
+                    color = "#15803D" if ct == "ADDED" else "#DC2626" if ct == "REMOVED" else "#B45309"
                     icon  = "+" if ct == "ADDED" else "−" if ct == "REMOVED" else "~"
                     st.markdown(
-                        f"<span style='color:{color};font-family:monospace;'>[{icon}] **{row['ticker']}** — {row['detail']}</span>",
+                        f"<span style='background:{bg};color:{color};font-family:DM Mono,monospace;"
+                        f"padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;'>"
+                        f"[{icon}] {row['ticker']}</span> "
+                        f"<span style='color:#5A6478;font-size:13px;'>{row.get('detail','')}</span>",
                         unsafe_allow_html=True
                     )
 
     # Action buttons
-    col1, col2, col3 = st.columns([1, 1, 2])
-    with col1:
+    ac1, ac2 = st.columns([1, 1])
+    with ac1:
         if st.button("🔄 Sync Now"):
-            with st.spinner("Fetching Google Sheet ..."):
+            with st.spinner("Fetching Google Sheet …"):
                 try:
                     from src.universe_loader import run as refresh
                     refresh()
@@ -522,115 +789,102 @@ elif page == "📋 Master Universe":
                     st.rerun()
                 except Exception as e:
                     st.error(f"Sync failed: {e}")
-    with col2:
+    with ac2:
         st.link_button(
-            "🔗 Open in Google Sheets",
+            "🔗 Open Google Sheet",
             "https://docs.google.com/spreadsheets/d/1jTlHPIMOiXcCIFPlJcUS2NjtXh6iBdGBarO26glnFAk/",
         )
 
-    # Tabs: Stocks | ETFs
     tab_stocks, tab_etfs = st.tabs(["🏢 Stocks", "📈 ETFs"])
 
     with tab_stocks:
         if stocks.empty:
             st.info("No stock data. Click 'Sync Now' to load from Google Sheet.")
         else:
-            # ── Sidebar filters ───────────────────────────────────────────────
-            st.markdown("**Filters**")
-            fc1, fc2, fc3 = st.columns(3)
-
+            st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+            fc1, fc2, fc3 = st.columns([1, 1, 1])
             with fc1:
                 ta_filter = st.selectbox("TA Status", ["All", "BUY", "Under Observation", "Blank"])
-
             with fc2:
-                search_q = st.text_input("Search company / ticker", placeholder="e.g. ITC")
-
+                search_q = st.text_input("Search", placeholder="Company or ticker …")
             with fc3:
                 f_score_min = st.slider("Min F-Score", 0, 9, 0)
 
-            show_3ta   = st.checkbox("Only stocks with all 3 TA signals = YES")
-            signals_only = st.checkbox("Only stocks with active BUY signal")
+            col_extra1, col_extra2 = st.columns(2)
+            with col_extra1:
+                show_3ta = st.checkbox("All 3 TA signals = YES only")
+            with col_extra2:
+                signals_only = st.checkbox("Active BUY signal only")
 
-            # ── Apply filters ─────────────────────────────────────────────────
             df_show = stocks.copy()
-
             if ta_filter != "All" and "TA Status" in df_show.columns:
                 if ta_filter == "Blank":
                     df_show = df_show[df_show["TA Status"].isna() | (df_show["TA Status"] == "")]
                 else:
                     df_show = df_show[df_show["TA Status"].str.contains(ta_filter, na=False, case=False)]
-
             if search_q and "Company Name" in df_show.columns:
                 mask = (
                     df_show["Company Name"].str.contains(search_q, case=False, na=False) |
                     df_show["Ticker (NSE)"].str.contains(search_q, case=False, na=False)
                 )
                 df_show = df_show[mask]
-
             if f_score_min > 0 and "F-Score" in df_show.columns:
                 df_show = df_show[pd.to_numeric(df_show["F-Score"], errors="coerce") >= f_score_min]
-
             if show_3ta and all(c in df_show.columns for c in ["TA - SSF", "TA - MACD", "TA - RSI"]):
                 df_show = df_show[
                     (df_show["TA - SSF"] == "YES") &
                     (df_show["TA - MACD"] == "YES") &
                     (df_show["TA - RSI"] == "YES")
                 ]
-
             if signals_only and "Ticker (NSE)" in df_show.columns:
                 df_show = df_show[df_show["Ticker (NSE)"].isin(buy_tickers)]
 
-            # ── Add icons ─────────────────────────────────────────────────────
             if "Ticker (NSE)" in df_show.columns:
-                df_show["Icons"] = df_show["Ticker (NSE)"].apply(
-                    lambda t: ("💼 " if t in portfolio_tickers else "") +
-                              ("📡 " if t in buy_tickers else "")
+                df_show["Flags"] = df_show["Ticker (NSE)"].apply(
+                    lambda t: ("💼 " if t in portfolio_tickers else "") + ("📡 " if t in buy_tickers else "")
                 )
-                # Move Icons column to front
-                cols = ["Icons"] + [c for c in df_show.columns if c != "Icons" and not c.startswith("_")]
+                cols = ["Flags"] + [c for c in df_show.columns if c != "Flags" and not c.startswith("_")]
                 df_show = df_show[cols]
 
-            # Remove internal columns
             display_cols = [c for c in df_show.columns if not c.startswith("_")]
             df_show = df_show[display_cols]
 
-            st.markdown(f"**{len(df_show)} stocks** (filtered from {len(stocks)})")
+            st.markdown(
+                f"<div style='font-size:13px;color:#5A6478;margin-bottom:8px;'>"
+                f"Showing <strong style='color:#14181F;'>{len(df_show)}</strong> of {len(stocks)} stocks</div>",
+                unsafe_allow_html=True
+            )
 
-            # Colour-coded dataframe
-            def colour_ta_status(val):
-                if str(val).strip().upper() == "BUY":
-                    return "background-color:#1a3a1a;color:#00e676;"
-                elif "UNDER OBSERVATION FOR BUY" in str(val).upper():
-                    return "background-color:#2a2a0a;color:#ffd740;"
-                elif "UNDER OBSERVATION FOR SALE" in str(val).upper():
-                    return "background-color:#3a1a0a;color:#ff9800;"
-                elif "UNDER OBSERVATION" in str(val).upper():
-                    return "background-color:#2a2000;color:#ffd740;"
-                return "background-color:#1a1a1a;color:#888;"
+            def style_universe(df):
+                styles = pd.DataFrame("", index=df.index, columns=df.columns)
+                if "TA Status" in df.columns:
+                    styles["TA Status"] = df["TA Status"].apply(
+                        lambda v: "background-color:#DCFCE7;color:#15803D;font-weight:700;"
+                        if str(v).strip().upper() == "BUY"
+                        else "background-color:#FEF3C7;color:#B45309;"
+                        if "OBSERVATION" in str(v).upper()
+                        else "color:#9CA3AF;"
+                    )
+                for col in ["TA - SSF", "TA - MACD", "TA - RSI"]:
+                    if col in df.columns:
+                        styles[col] = df[col].apply(
+                            lambda v: "color:#16A34A;font-weight:700;" if str(v).strip().upper() == "YES"
+                            else "color:#DC2626;" if str(v).strip().upper() == "NO"
+                            else "color:#9CA3AF;"
+                        )
+                return styles
 
-            def colour_ta_indicator(val):
-                v = str(val).strip().upper()
-                if v == "YES": return "color:#00e676;font-weight:bold;"
-                if v == "NO":  return "color:#ff5252;"
-                return "color:#666;"
+            st.dataframe(
+                df_show.style.apply(style_universe, axis=None),
+                use_container_width=True, hide_index=True, height=560,
+            )
 
-            styled = df_show.style
-            if "TA Status" in df_show.columns:
-                styled = styled.applymap(colour_ta_status, subset=["TA Status"])
-            for col in ["TA - SSF", "TA - MACD", "TA - RSI"]:
-                if col in df_show.columns:
-                    styled = styled.applymap(colour_ta_indicator, subset=[col])
-
-            st.dataframe(styled, use_container_width=True, hide_index=True, height=600)
-
-            # Export
             if st.button("⬇️ Export to Excel"):
                 import io
                 buf = io.BytesIO()
                 df_show.to_excel(buf, index=False)
                 st.download_button(
-                    "Download Excel",
-                    data=buf.getvalue(),
+                    "Download Excel", data=buf.getvalue(),
                     file_name=f"stock_universe_{datetime.today().strftime('%Y%m%d')}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 )
@@ -650,31 +904,72 @@ elif page == "📋 Master Universe":
 # ═══════════════════════════════════════════════════════════════════════════════
 
 elif page == "📊 Backtest":
-    st.title("📊 Backtest")
+    st.markdown("""
+    <div class='page-header'>
+      <h1>📊 Backtest</h1>
+      <div class='page-subtitle'>Historical simulation across both 2023–2026 and 2020–2026 windows</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    st.warning("⚠️ **Survivorship bias note:** Backtests use the current Nifty 500 universe. Stocks delisted during the test period are not included. Results are indicative only.")
+    st.warning("⚠️ **Survivorship bias note:** Backtests use the current universe. Stocks delisted during the test period are excluded. Results are indicative only.")
 
     cfg = load_signal_config()
     strategy_names = [s["name"] for s in cfg.get("strategies", [])]
 
+    section("Configure Run")
     col1, col2, col3 = st.columns(3)
     with col1:
         selected_strategy = st.selectbox("Strategy", strategy_names)
     with col2:
-        start_date = st.date_input("From", value=pd.Timestamp("2022-01-01"))
+        start_date = st.date_input("From", value=pd.Timestamp("2023-01-01"))
     with col3:
         end_date = st.date_input("To", value=pd.Timestamp.today())
 
     if st.button("▶️ Run Backtest"):
-        st.info("🚧 Backtest engine (src/backtest.py) — connect to run full simulation with tax modelling, equity curve, and trade log.")
+        st.info("🚧 Backtest engine — connect src/backtest.py to run full simulation.")
         st.markdown("""
         **Backtest will include:**
         - Interactive equity curve vs Nifty 500 benchmark
-        - Bull/bear/sideways regime shading
-        - STCG 20% (< 1 year) and LTCG 12.5% (> 1 year) tax modelling
-        - Trade log with entry/exit dates, P&L, holding days
-        - Max drawdown, CAGR, Sharpe ratio
+        - Bull / bear / sideways regime shading
+        - STCG 20% (< 1 yr) and LTCG 12.5% (> 1 yr) tax modelling
+        - Trade log: entry/exit dates, P&L, holding days
+        - Max drawdown, CAGR, Sharpe ratio, V3 score
         """)
+
+    # Show cached results if they exist
+    section("Cached Results")
+    results_dir = ROOT / "backtest_results"
+    if results_dir.exists():
+        summary_files = sorted(results_dir.glob("summary_*.csv"), reverse=True)
+        if summary_files:
+            for sf in summary_files:
+                label = sf.stem.replace("summary_", "Window: ")
+                with st.expander(f"📈 {label}", expanded=True):
+                    df_sum = pd.read_csv(sf)
+
+                    def style_backtest(df):
+                        styles = pd.DataFrame("", index=df.index, columns=df.columns)
+                        for col in ["win_rate", "expectancy", "cagr"]:
+                            if col in df.columns:
+                                styles[col] = df[col].apply(
+                                    lambda v: "color:#16A34A;font-weight:700;" if float(v or 0) > 0
+                                    else "color:#DC2626;font-weight:700;"
+                                )
+                        if "max_dd" in df.columns:
+                            styles["max_dd"] = df["max_dd"].apply(
+                                lambda v: "color:#DC2626;font-weight:600;" if float(v or 0) < -30
+                                else "color:#D97706;"
+                            )
+                        return styles
+
+                    st.dataframe(
+                        df_sum.style.apply(style_backtest, axis=None),
+                        use_container_width=True, hide_index=True
+                    )
+        else:
+            st.info("No cached backtest results yet. Run `python backtest_all_strategies_final.py` locally.")
+    else:
+        st.info("No cached backtest results yet. Run `python backtest_all_strategies_final.py` locally.")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -682,14 +977,20 @@ elif page == "📊 Backtest":
 # ═══════════════════════════════════════════════════════════════════════════════
 
 elif page == "🔔 Alerts & Automation":
-    st.title("🔔 Alerts & Automation")
+    st.markdown("""
+    <div class='page-header'>
+      <h1>🔔 Alerts & Automation</h1>
+      <div class='page-subtitle'>Email config, run schedule, and GitHub Actions secrets</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    st.subheader("📧 Email Configuration")
+    section("Email Configuration")
     col1, col2 = st.columns(2)
     with col1:
-        st.text_input("Gmail sender",    value=os.environ.get("GMAIL_USER", ""), disabled=True)
+        st.text_input("Gmail sender",    value=os.environ.get("GMAIL_USER", ""),      disabled=True)
         st.text_input("Recipient email", value=os.environ.get("RECIPIENT_EMAIL", ""), disabled=True)
     with col2:
+        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
         if st.button("📨 Send Test Email"):
             try:
                 from src.email_report import send_weekly_report
@@ -697,39 +998,52 @@ elif page == "🔔 Alerts & Automation":
                     results={"weekly_buy": pd.DataFrame(), "weekly_sell": pd.DataFrame(),
                              "monthly_buy": pd.DataFrame(), "monthly_sell": pd.DataFrame()},
                     universe_summary={"stock_count": 0, "etf_count": 0},
-                    portfolio_tickers=set(),
-                    removed_tickers=set(),
+                    portfolio_tickers=set(), removed_tickers=set(),
                     run_date=datetime.today().strftime("%Y-%m-%d"),
                 )
-                st.success("✅ Test email sent!") if result else st.error("❌ Email failed — check GMAIL credentials in environment.")
+                if result:
+                    st.success("✅ Test email sent!")
+                else:
+                    st.error("❌ Email failed — check GMAIL credentials.")
             except Exception as e:
                 st.error(f"Error: {e}")
 
-    st.divider()
-    st.subheader("⏰ Run Schedule")
+        st.markdown(
+            f"<div style='margin-top:12px;'>"
+            f"<a href='{DASHBOARD_URL}' target='_blank' "
+            f"style='color:#2563EB;font-size:13px;font-weight:600;text-decoration:none;'>"
+            f"🔗 Dashboard link included in emails ↗</a></div>",
+            unsafe_allow_html=True
+        )
 
+    st.divider()
+    section("Run Schedule")
     schedule_data = {
-        "Workflow":     ["weekly_signals.yml", "weekend_universe_refresh.yml"],
-        "Trigger":      ["Every Friday 9:00 PM IST", "Every Saturday 6:00 AM IST"],
-        "Action":       ["Fetch Sheet → Signals → Email → Commit", "Fetch Sheet → Commit (dashboard refresh)"],
-        "Last Month":   ["Last Friday: also runs S1 + S3 monthly strategies", "No signal run — universe only"],
+        "Workflow":   ["weekly_signals.yml", "weekend_universe_refresh.yml"],
+        "Trigger":    ["Every Friday 9:00 PM IST", "Every Saturday 6:00 AM IST"],
+        "Action":     ["Fetch Sheet → Signals → Email → Commit",
+                       "Fetch Sheet → Commit (dashboard refresh)"],
+        "Note":       ["Last Friday of month also runs S1 + S3 monthly strategies",
+                       "No signal run — universe refresh only"],
     }
     st.dataframe(pd.DataFrame(schedule_data), use_container_width=True, hide_index=True)
 
     st.divider()
-    st.subheader("🔑 Required GitHub Secrets")
+    section("Required GitHub Secrets")
     secrets_data = {
-        "Secret Name":  ["UPSTOX_TOKEN", "UPSTOX_API_KEY", "GMAIL_USER", "GMAIL_PASS",
-                         "RECIPIENT_EMAIL", "GOOGLE_SHEETS_CREDENTIALS"],
-        "Purpose":      ["Upstox access token (refresh daily)", "Upstox API key",
-                         "Gmail sender address", "Gmail app password",
-                         "Email recipient address", "Google service account JSON for Sheets API fallback"],
-        "Required":     ["✅ Yes", "✅ Yes", "✅ Yes", "✅ Yes", "✅ Yes", "Optional (only if sheet is private)"],
+        "Secret":   ["UPSTOX_TOKEN", "UPSTOX_API_KEY", "GMAIL_USER", "GMAIL_PASS",
+                     "RECIPIENT_EMAIL", "GOOGLE_SHEETS_CREDENTIALS", "DASHBOARD_URL"],
+        "Purpose":  ["Upstox access token (refresh daily)", "Upstox API key",
+                     "Gmail sender address", "Gmail app password",
+                     "Email recipient", "Google service account JSON for Sheets API",
+                     "Streamlit dashboard URL included in email reports"],
+        "Required": ["✅ Yes", "✅ Yes", "✅ Yes", "✅ Yes",
+                     "✅ Yes", "Optional", "Optional"],
     }
     st.dataframe(pd.DataFrame(secrets_data), use_container_width=True, hide_index=True)
 
     st.divider()
-    st.subheader("▶️ Manual Trigger")
-    st.info("To manually trigger a signal run, go to your GitHub repo → Actions → Weekly Signal Run → Run workflow.")
+    section("Manual Trigger")
+    st.info("Go to your GitHub repo → Actions → Weekly Signal Run → Run workflow to trigger manually.")
 
-import os  # needed for page 6
+import os  # noqa
