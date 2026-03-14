@@ -686,19 +686,17 @@ elif page == "💼 Portfolio":
         if credentials_complete():
             try:
                 _login_url = get_login_url()
-                st.markdown(
-                    f"""<a href="{_login_url}" target="_self"
-                        style="display:inline-block;padding:10px 24px;background:#2563EB;
-                               color:white;border-radius:8px;font-weight:600;
-                               text-decoration:none;font-size:14px;">
-                        🔗 Connect Upstox (one-time login)
-                    </a>""",
-                    unsafe_allow_html=True
-                )
+                # st.link_button opens in the same tab — works correctly inside Streamlit iframe
+                st.link_button("🔗 Connect Upstox (one-time login)", _login_url,
+                               type="primary", use_container_width=False)
                 st.caption(
-                    "You will be redirected to Upstox login. "
-                    "After login, you will be returned here automatically."
+                    "Clicking the button will open Upstox login. "
+                    "After login, Upstox redirects back to this app automatically."
                 )
+                # Also show the raw URL as fallback in case button doesn't work
+                with st.expander("🔗 Or copy login URL manually"):
+                    st.code(_login_url)
+                    st.caption("Paste this URL in your browser if the button above doesn't redirect.")
             except Exception as _e:
                 st.error(f"Cannot generate login URL: {_e}")
         else:
@@ -723,15 +721,11 @@ elif page == "💼 Portfolio":
                     except Exception as e:
                         st.error(f"Sync failed: {e}")
         with col_reconnect:
-            if st.button("🔁 Re-authenticate"):
-                try:
-                    _login_url = get_login_url()
-                    st.markdown(
-                        f'<meta http-equiv="refresh" content="0; url={_login_url}">',
-                        unsafe_allow_html=True
-                    )
-                except Exception as _e:
-                    st.error(f"{_e}")
+            try:
+                _reauth_url = get_login_url()
+                st.link_button("🔁 Re-authenticate", _reauth_url)
+            except Exception as _e:
+                st.error(f"{_e}")
 
     portfolio = load_portfolio()
     stocks, _ = load_universe()
