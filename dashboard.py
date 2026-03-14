@@ -677,9 +677,31 @@ elif page == "💼 Portfolio":
     try:
         from src.upstox_auth import is_connected, get_login_url, credentials_complete
         _connected = is_connected()
-    except Exception:
+    except Exception as _conn_err:
         _connected = False
         credentials_complete = lambda: False
+
+    # ── DEBUG: show exactly what secrets are visible ───────────────────────
+    import streamlit as st_debug
+    with st_debug.expander("🔍 Debug — Upstox secret status (remove after fixing)"):
+        import os
+        def _chk(k):
+            in_env     = bool(os.environ.get(k,"").strip())
+            in_secrets = False
+            try:
+                in_secrets = k in st.secrets and bool(str(st.secrets[k]).strip())
+            except Exception:
+                pass
+            return f"{'✅' if (in_env or in_secrets) else '❌'}  {k:30s}  env={'✅' if in_env else '❌'}  secrets={'✅' if in_secrets else '❌'}"
+        for _k in ["UPSTOX_API_KEY","UPSTOX_API_SECRET","UPSTOX_REDIRECT_URI",
+                   "UPSTOX_REFRESH_TOKEN","UPSTOX_TOKEN","UPSTOX_TOKEN_EXPIRY"]:
+            st.text(_chk(_k))
+        st.text(f"is_connected() = {_connected}")
+        try:
+            st.text(f"import error   = none")
+        except Exception:
+            st.text(f"import error   = {_conn_err}")
+    # ── END DEBUG ─────────────────────────────────────────────────────────
 
     if not _connected:
         st.warning("⚠️ Upstox is not connected. Complete the one-time login below.")
