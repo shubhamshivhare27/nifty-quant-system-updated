@@ -52,8 +52,29 @@ TOKEN_CACHE = Path(__file__).resolve().parent.parent / "data" / "upstox_token.js
 # ── Credential helpers ────────────────────────────────────────────────────────
 
 def _secret(key: str, default: str = "") -> str:
-    """Read from env (set from Streamlit secrets by dashboard.py)."""
-    return os.environ.get(key, default).strip()
+    """
+    Read secret from os.environ first, then fall back to st.secrets directly.
+    This ensures upstox_auth works even when called before the secrets injection
+    block in dashboard.py has run, or when used outside Streamlit (GitHub Actions).
+    """
+    # 1. Check os.environ (set by dashboard.py injection block, or GitHub Actions)
+    val = os.environ.get(key, "").strip()
+    if val:
+        return val
+
+    # 2. Fall back to st.secrets directly (when running inside Streamlit)
+    try:
+        import streamlit as st
+        if key in st.secrets:
+            val = str(st.secrets[key]).strip()
+            if val:
+                # Cache into os.environ so subsequent calls are fast
+                os.environ[key] = val
+                return val
+    except Exception:
+        pass
+
+    return default
 
 
 def get_credentials() -> dict:
