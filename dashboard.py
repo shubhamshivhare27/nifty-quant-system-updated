@@ -673,60 +673,31 @@ elif page == "💼 Portfolio":
     </div>
     """, unsafe_allow_html=True)
 
-    # ── Upstox connection status + OAuth login ────────────────────────────────
+    # ── Upstox connection status ──────────────────────────────────────────────
     try:
         from src.upstox_auth import is_connected, get_login_url, credentials_complete
         _connected = is_connected()
-    except Exception as _conn_err:
+    except Exception:
         _connected = False
         credentials_complete = lambda: False
 
-    # ── DEBUG: show exactly what secrets are visible ───────────────────────
-    import streamlit as st_debug
-    with st_debug.expander("🔍 Debug — Upstox secret status (remove after fixing)"):
-        import os
-        def _chk(k):
-            in_env     = bool(os.environ.get(k,"").strip())
-            in_secrets = False
-            try:
-                in_secrets = k in st.secrets and bool(str(st.secrets[k]).strip())
-            except Exception:
-                pass
-            return f"{'✅' if (in_env or in_secrets) else '❌'}  {k:30s}  env={'✅' if in_env else '❌'}  secrets={'✅' if in_secrets else '❌'}"
-        for _k in ["UPSTOX_API_KEY","UPSTOX_API_SECRET","UPSTOX_REDIRECT_URI",
-                   "UPSTOX_REFRESH_TOKEN","UPSTOX_TOKEN","UPSTOX_TOKEN_EXPIRY"]:
-            st.text(_chk(_k))
-        st.text(f"is_connected() = {_connected}")
-        try:
-            st.text(f"import error   = none")
-        except Exception:
-            st.text(f"import error   = {_conn_err}")
-    # ── END DEBUG ─────────────────────────────────────────────────────────
-
     if not _connected:
-        st.warning("⚠️ Upstox is not connected. Complete the one-time login below.")
+        # No UPSTOX_TOKEN — show login button
+        st.warning("⚠️ Upstox token missing. Complete the one-time login to generate a token.")
         if credentials_complete():
             try:
                 _login_url = get_login_url()
-                # st.link_button opens in the same tab — works correctly inside Streamlit iframe
                 st.link_button("🔗 Connect Upstox (one-time login)", _login_url,
                                type="primary", use_container_width=False)
-                st.caption(
-                    "Clicking the button will open Upstox login. "
-                    "After login, Upstox redirects back to this app automatically."
-                )
-                # Also show the raw URL as fallback in case button doesn't work
+                st.caption("After login, copy UPSTOX_TOKEN and UPSTOX_TOKEN_EXPIRY shown on screen into Streamlit Secrets.")
                 with st.expander("🔗 Or copy login URL manually"):
                     st.code(_login_url)
-                    st.caption("Paste this URL in your browser if the button above doesn't redirect.")
             except Exception as _e:
                 st.error(f"Cannot generate login URL: {_e}")
         else:
-            st.error(
-                "UPSTOX_API_KEY and UPSTOX_API_SECRET are not set in Streamlit secrets. "
-                "Add them first, then redeploy."
-            )
+            st.error("UPSTOX_API_KEY and UPSTOX_API_SECRET are not set in Streamlit secrets.")
     else:
+        # UPSTOX_TOKEN present — show sync + re-auth buttons
         col_sync, col_reconnect = st.columns([3, 1])
         with col_sync:
             if st.button("🔄 Sync Upstox Holdings"):
