@@ -1,383 +1,396 @@
 """
 upstox_auth.py
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Upstox OAuth2 token management — auto-refresh flow.
+Upstox token management with full TOTP auto-login.
 
 HOW IT WORKS
 ────────────
-Step 1 (one-time setup):
-  User clicks "Connect Upstox" in dashboard → redirected to Upstox login
-  → Upstox redirects back to your app with ?code=AUTH_CODE
-  → We exchange AUTH_CODE for access_token + refresh_token
-  → refresh_token is saved to Streamlit secrets (persists forever)
+- Uses `upstox-totp` library to fully automate the login flow.
+- No browser, no manual steps, no OTP on phone.
+- GitHub Actions runs this daily at 07:30 IST, refreshes the token,
+  and pushes the new UPSTOX_TOKEN to both GitHub + Streamlit secrets.
 
-Step 2 (daily, automatic):
-  access_token expires every 24h.
-  get_valid_token() checks expiry and auto-refreshes using refresh_token.
-  No user login required after the initial setup.
+REQUIRED SECRETS (GitHub + Streamlit)
+──────────────────────────────────────
+  UPSTOX_USERNAME     = "9876543210"          # 10-digit mobile number
+  UPSTOX_PASSWORD     = "your-password"       # Upstox login password
+  UPSTOX_PIN          = "123456"              # 6-digit Upstox PIN
+  UPSTOX_TOTP_SECRET  = "BASE32SECRETKEY"     # TOTP secret (see setup below)
+  UPSTOX_API_KEY      = "your-api-key"        # from upstox developer console
+  UPSTOX_API_SECRET   = "your-api-secret"     # from upstox developer console
+  UPSTOX_REDIRECT_URI = "https://your-app.streamlit.app"
 
-Step 3 (GitHub Actions):
-  A daily cron job calls refresh_and_update_github_secret() to push the
-  new access_token to GitHub Secrets so all workflows use a fresh token.
-
-REQUIRED STREAMLIT SECRETS
-────────────────────────────
-  UPSTOX_API_KEY       = "your_api_key"
-  UPSTOX_API_SECRET    = "your_api_secret"
-  UPSTOX_REDIRECT_URI  = "https://your-app.streamlit.app"
-  UPSTOX_REFRESH_TOKEN = "refresh_token_from_first_login"   ← set once
-  UPSTOX_TOKEN         = "current_access_token"              ← auto-updated
-  UPSTOX_TOKEN_EXPIRY  = "2026-03-14T10:00:00"              ← auto-updated
+HOW TO GET UPSTOX_TOTP_SECRET
+──────────────────────────────
+1. Log into Upstox → Profile → Security → Enable TOTP
+2. When shown the QR code, also click "Can't scan? Show key"
+3. That key (Base32 string) = UPSTOX_TOTP_SECRET
+4. Scan the QR code with Google Authenticator too (as backup)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 """
 
 import os
 import json
 import logging
-import requests
 from datetime import datetime, timedelta
-from urllib.parse import urlencode
 from pathlib import Path
+from urllib.parse import urlencode
+
+import requests
 
 log = logging.getLogger("upstox_auth")
 
-# ── Upstox OAuth endpoints ────────────────────────────────────────────────────
+TOKEN_CACHE = Path(__file__).resolve().parent.parent / "data" / "upstox_token.json"
 AUTH_URL    = "https://api.upstox.com/v2/login/authorization/dialog"
 TOKEN_URL   = "https://api.upstox.com/v2/login/authorization/token"
 
-# Local token cache file (for non-Streamlit use — e.g. GitHub Actions)
-TOKEN_CACHE = Path(__file__).resolve().parent.parent / "data" / "upstox_token.json"
 
-
-# ── Credential helpers ────────────────────────────────────────────────────────
+# ── Secret reader ─────────────────────────────────────────────────────────────
 
 def _secret(key: str, default: str = "") -> str:
     """
-    Read secret from os.environ first, then fall back to st.secrets directly.
-    This ensures upstox_auth works even when called before the secrets injection
-    block in dashboard.py has run, or when used outside Streamlit (GitHub Actions).
+    Read from os.environ first, then st.secrets directly.
+    Works both inside Streamlit and in GitHub Actions.
     """
-    # 1. Check os.environ (set by dashboard.py injection block, or GitHub Actions)
     val = os.environ.get(key, "").strip()
     if val:
         return val
-
-    # 2. Fall back to st.secrets directly (when running inside Streamlit)
     try:
         import streamlit as st
         if key in st.secrets:
             val = str(st.secrets[key]).strip()
             if val:
-                # Cache into os.environ so subsequent calls are fast
-                os.environ[key] = val
+                os.environ[key] = val   # cache for subsequent calls
                 return val
     except Exception:
         pass
-
     return default
 
 
-def get_credentials() -> dict:
-    """Return all Upstox OAuth credentials from environment."""
-    return {
-        "api_key":       _secret("UPSTOX_API_KEY"),
-        "api_secret":    _secret("UPSTOX_API_SECRET"),
-        "redirect_uri":  _secret("UPSTOX_REDIRECT_URI", "https://localhost"),
-        "refresh_token": _secret("UPSTOX_REFRESH_TOKEN"),
-        "access_token":  _secret("UPSTOX_TOKEN"),
-        "token_expiry":  _secret("UPSTOX_TOKEN_EXPIRY"),
-    }
-
-
-def credentials_complete() -> bool:
-    """True if minimum credentials for OAuth are present."""
-    c = get_credentials()
-    return bool(c["api_key"] and c["api_secret"])
-
+# ── Status checks ─────────────────────────────────────────────────────────────
 
 def is_connected() -> bool:
-    """
-    True if UPSTOX_TOKEN is present.
-    NOTE: Upstox does NOT issue a refresh_token — only an access_token valid
-    until 3:30 AM the next day. So we check for UPSTOX_TOKEN directly.
-    """
+    """True if UPSTOX_TOKEN is present (token exists, may or may not be valid)."""
     return bool(_secret("UPSTOX_TOKEN"))
 
 
-# ── Step 1: Build the login URL ───────────────────────────────────────────────
+def credentials_complete() -> bool:
+    """True if API key + secret are present (minimum for OAuth login URL)."""
+    return bool(_secret("UPSTOX_API_KEY") and _secret("UPSTOX_API_SECRET"))
+
+
+def totp_credentials_complete() -> bool:
+    """True if all TOTP credentials are present for fully automated login."""
+    required = ["UPSTOX_USERNAME", "UPSTOX_PASSWORD", "UPSTOX_PIN",
+                "UPSTOX_TOTP_SECRET", "UPSTOX_API_KEY", "UPSTOX_API_SECRET"]
+    return all(_secret(k) for k in required)
+
+
+# ── Manual OAuth login URL (fallback if TOTP not configured) ──────────────────
 
 def get_login_url() -> str:
-    """
-    Returns the Upstox OAuth login URL.
-    Redirect user to this URL to initiate login.
-    After login, Upstox redirects to UPSTOX_REDIRECT_URI?code=AUTH_CODE
-    """
-    c = get_credentials()
-    if not c["api_key"]:
+    """Returns Upstox OAuth login URL for manual browser login."""
+    api_key      = _secret("UPSTOX_API_KEY")
+    redirect_uri = _secret("UPSTOX_REDIRECT_URI", "https://localhost")
+    if not api_key:
         raise ValueError("UPSTOX_API_KEY is not set in Streamlit secrets.")
     params = {
-        "client_id":     c["api_key"],
-        "redirect_uri":  c["redirect_uri"],
+        "client_id":     api_key,
+        "redirect_uri":  redirect_uri,
         "response_type": "code",
     }
     return f"{AUTH_URL}?{urlencode(params)}"
 
 
-# ── Step 2: Exchange auth code for tokens ─────────────────────────────────────
-
 def exchange_code_for_tokens(auth_code: str) -> dict:
-    """
-    Exchange one-time auth_code for access_token + refresh_token.
-    Called once after the user completes initial login.
-
-    Returns:
-        {
-          "access_token":  "...",
-          "refresh_token": "...",
-          "expires_at":    "2026-03-15T10:00:00"
-        }
-    """
-    c = get_credentials()
-    if not c["api_key"] or not c["api_secret"]:
-        raise ValueError("UPSTOX_API_KEY and UPSTOX_API_SECRET must be set.")
-
+    """Exchange one-time auth_code (from OAuth callback) for access_token."""
     payload = {
         "code":          auth_code,
-        "client_id":     c["api_key"],
-        "client_secret": c["api_secret"],
-        "redirect_uri":  c["redirect_uri"],
+        "client_id":     _secret("UPSTOX_API_KEY"),
+        "client_secret": _secret("UPSTOX_API_SECRET"),
+        "redirect_uri":  _secret("UPSTOX_REDIRECT_URI", "https://localhost"),
         "grant_type":    "authorization_code",
-    }
-    headers = {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "Accept":        "application/json",
-    }
-    resp = requests.post(TOKEN_URL, data=payload, headers=headers, timeout=30)
-
-    if resp.status_code != 200:
-        raise ValueError(
-            f"Token exchange failed ({resp.status_code}): {resp.text[:400]}"
-        )
-
-    data = resp.json()
-    expires_at = (datetime.now() + timedelta(hours=23, minutes=30)).strftime("%Y-%m-%dT%H:%M:%S")
-
-    result = {
-        "access_token":  data.get("access_token", ""),
-        "refresh_token": data.get("refresh_token", ""),   # may be same as before for Upstox
-        "expires_at":    expires_at,
-    }
-
-    # Cache locally
-    _save_token_cache(result)
-
-    log.info("Token exchange successful. refresh_token and access_token obtained.")
-    return result
-
-
-# ── Step 3: Refresh access token using refresh_token ─────────────────────────
-
-def refresh_access_token() -> dict:
-    """
-    Use the stored refresh_token to get a new access_token.
-    Upstox supports this via the same token endpoint with grant_type=refresh_token
-    (NOTE: Upstox uses a different approach — see note below).
-
-    ⚠️ UPSTOX SPECIFIC: Upstox does not support standard refresh_token grant.
-    Instead, they issue a new access_token by re-using the auth_code flow
-    OR by using their extended_token endpoint.
-    
-    Their recommended daily refresh: use the extended token API.
-    POST /v2/login/authorization/token with grant_type=refresh_token
-    This works if the session is still active (within 30 days).
-    """
-    c = get_credentials()
-
-    if not c["refresh_token"]:
-        raise ValueError(
-            "UPSTOX_REFRESH_TOKEN is not set. "
-            "Complete the initial OAuth login from the dashboard first."
-        )
-
-    payload = {
-        "refresh_token": c["refresh_token"],
-        "client_id":     c["api_key"],
-        "client_secret": c["api_secret"],
-        "redirect_uri":  c["redirect_uri"],
-        "grant_type":    "refresh_token",
     }
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
         "Accept":       "application/json",
     }
-
     resp = requests.post(TOKEN_URL, data=payload, headers=headers, timeout=30)
-
     if resp.status_code != 200:
-        raise ValueError(
-            f"Token refresh failed ({resp.status_code}): {resp.text[:400]}\n"
-            "The refresh_token may have expired. Re-authenticate from the dashboard."
-        )
+        raise ValueError(f"Token exchange failed ({resp.status_code}): {resp.text[:400]}")
 
     data = resp.json()
     expires_at = (datetime.now() + timedelta(hours=23, minutes=30)).strftime("%Y-%m-%dT%H:%M:%S")
-
     result = {
-        "access_token":  data.get("access_token", ""),
-        "refresh_token": data.get("refresh_token", c["refresh_token"]),  # use old if not rotated
-        "expires_at":    expires_at,
+        "access_token": data.get("access_token", ""),
+        "expires_at":   expires_at,
     }
-
-    # Update env so current process uses new token
-    os.environ["UPSTOX_TOKEN"]        = result["access_token"]
-    os.environ["UPSTOX_TOKEN_EXPIRY"] = result["expires_at"]
-    if result["refresh_token"]:
-        os.environ["UPSTOX_REFRESH_TOKEN"] = result["refresh_token"]
-
-    # Cache locally
     _save_token_cache(result)
-
-    log.info(f"Token refreshed successfully. Expires at: {expires_at}")
+    log.info("Manual OAuth token exchange successful.")
     return result
 
 
-# ── Step 4: Get a valid token (auto-refresh if expired) ──────────────────────
+# ── TOTP Auto-login ───────────────────────────────────────────────────────────
+
+def generate_token_via_totp() -> dict:
+    """
+    Fully automated token generation using TOTP credentials.
+    No browser, no manual steps. Uses the `upstox-totp` library.
+
+    Returns:
+        {"access_token": "...", "expires_at": "2026-03-15T03:30:00"}
+
+    Raises:
+        ValueError if TOTP credentials are missing or login fails.
+    """
+    try:
+        from upstox_totp import UpstoxTOTP
+        from pydantic import SecretStr
+    except ImportError:
+        raise ValueError(
+            "upstox-totp library not installed. "
+            "Add 'upstox-totp' to requirements.txt and redeploy."
+        )
+
+    if not totp_credentials_complete():
+        missing = [k for k in ["UPSTOX_USERNAME", "UPSTOX_PASSWORD", "UPSTOX_PIN",
+                                "UPSTOX_TOTP_SECRET", "UPSTOX_API_KEY", "UPSTOX_API_SECRET"]
+                   if not _secret(k)]
+        raise ValueError(
+            f"TOTP credentials incomplete. Missing: {', '.join(missing)}. "
+            "Add them to Streamlit secrets and GitHub secrets."
+        )
+
+    log.info("Generating Upstox token via TOTP auto-login …")
+
+    try:
+        upx = UpstoxTOTP(
+            username     = _secret("UPSTOX_USERNAME"),
+            password     = SecretStr(_secret("UPSTOX_PASSWORD")),
+            pin_code     = SecretStr(_secret("UPSTOX_PIN")),
+            totp_secret  = SecretStr(_secret("UPSTOX_TOTP_SECRET")),
+            client_id    = _secret("UPSTOX_API_KEY"),
+            client_secret= SecretStr(_secret("UPSTOX_API_SECRET")),
+            redirect_uri = _secret("UPSTOX_REDIRECT_URI", "https://localhost"),
+        )
+
+        response = upx.app_token.get_access_token()
+
+        if not response.success or not response.data:
+            raise ValueError(f"TOTP login failed: {response}")
+
+        access_token = response.data.access_token
+        # Upstox tokens expire at 3:30 AM next day
+        now = datetime.now()
+        expiry = now.replace(hour=3, minute=30, second=0, microsecond=0)
+        if now >= expiry:
+            expiry = expiry + timedelta(days=1)
+        expires_at = expiry.strftime("%Y-%m-%dT%H:%M:%S")
+
+        result = {"access_token": access_token, "expires_at": expires_at}
+
+        # Update env so current process uses new token immediately
+        os.environ["UPSTOX_TOKEN"]        = access_token
+        os.environ["UPSTOX_TOKEN_EXPIRY"] = expires_at
+
+        _save_token_cache(result)
+        log.info(f"TOTP token generated. User: {response.data.user_name}. Expires: {expires_at}")
+        return result
+
+    except ValueError:
+        raise
+    except Exception as e:
+        raise ValueError(f"TOTP auto-login failed: {e}") from e
+
+
+# ── Get valid token (used by portfolio.py and data_fetcher.py) ────────────────
 
 def get_valid_token() -> str:
     """
-    Returns the current UPSTOX_TOKEN.
-    Upstox does not support refresh tokens — the access_token is valid until
-    3:30 AM the next day and must be renewed via the daily GitHub Actions cron
-    (which uses TOTP auto-login) or manually updated in Streamlit secrets.
-
-    Raises ValueError if token is missing.
+    Returns a valid UPSTOX_TOKEN.
+    - If current token is valid (not expired), returns it.
+    - If expired and TOTP credentials available, auto-refreshes via TOTP.
+    - If expired and no TOTP, raises ValueError with instructions.
     """
     access_token = _secret("UPSTOX_TOKEN")
-    if not access_token:
-        raise ValueError(
-            "UPSTOX_TOKEN is missing or empty. "
-            "Go to Portfolio page and click 'Connect Upstox' to generate a fresh token, "
-            "then add it to Streamlit Secrets."
-        )
+    expiry_str   = _secret("UPSTOX_TOKEN_EXPIRY")
 
-    # Warn if token is past 3:30 AM expiry
-    expiry_str = _secret("UPSTOX_TOKEN_EXPIRY")
-    if expiry_str:
+    # Check if current token is still valid
+    if access_token and expiry_str:
         try:
             expiry = datetime.strptime(expiry_str, "%Y-%m-%dT%H:%M:%S")
-            if datetime.now() > expiry:
-                log.warning(
-                    "UPSTOX_TOKEN appears expired (past 3:30 AM). "
-                    "Re-authenticate from the Portfolio page to get a fresh token."
-                )
+            if datetime.now() < expiry - timedelta(minutes=30):
+                return access_token   # still valid
+            log.info("Token expiring soon — auto-refreshing via TOTP …")
         except ValueError:
             pass
 
-    return access_token
+    # Token missing or expired — try TOTP auto-refresh
+    if totp_credentials_complete():
+        result = generate_token_via_totp()
+        return result["access_token"]
+
+    # No TOTP credentials — check if we have a token anyway (may still be valid)
+    if access_token:
+        log.warning("Token may be expired but no TOTP credentials for auto-refresh. Using existing token.")
+        return access_token
+
+    raise ValueError(
+        "UPSTOX_TOKEN is missing and TOTP auto-refresh is not configured. "
+        "Either add TOTP credentials (UPSTOX_USERNAME, UPSTOX_PASSWORD, UPSTOX_PIN, "
+        "UPSTOX_TOTP_SECRET) for auto-refresh, or manually update UPSTOX_TOKEN in secrets."
+    )
 
 
-# ── Token cache (local file — used by GitHub Actions) ────────────────────────
+# ── GitHub Secrets updater ────────────────────────────────────────────────────
+
+def update_github_secret(secret_name: str, secret_value: str) -> bool:
+    """Push a single secret value to GitHub repository secrets."""
+    try:
+        import base64
+        from nacl import encoding, public as nacl_public
+    except ImportError:
+        log.warning("pynacl not installed — cannot update GitHub secrets.")
+        return False
+
+    github_token = os.environ.get("GH_PAT_TOKEN", "")
+    github_repo  = os.environ.get("GITHUB_REPO", "")
+
+    if not github_token or not github_repo:
+        log.warning("GH_PAT_TOKEN or GITHUB_REPO not set — skipping GitHub secret update.")
+        return False
+
+    headers = {
+        "Authorization":        f"Bearer {github_token}",
+        "Accept":               "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+
+    # Get repo public key
+    key_resp = requests.get(
+        f"https://api.github.com/repos/{github_repo}/actions/secrets/public-key",
+        headers=headers, timeout=15
+    )
+    if key_resp.status_code != 200:
+        log.error(f"Failed to get GitHub public key: {key_resp.status_code}")
+        return False
+
+    pub_key_data = key_resp.json()
+    pub_key_bytes = base64.b64decode(pub_key_data["key"])
+    sealed = nacl_public.SealedBox(nacl_public.PublicKey(pub_key_bytes))
+    encrypted = base64.b64encode(sealed.encrypt(secret_value.encode())).decode()
+
+    put_resp = requests.put(
+        f"https://api.github.com/repos/{github_repo}/actions/secrets/{secret_name}",
+        headers=headers,
+        json={"encrypted_value": encrypted, "key_id": pub_key_data["key_id"]},
+        timeout=15,
+    )
+    success = put_resp.status_code in (201, 204)
+    if success:
+        log.info(f"GitHub secret {secret_name} updated ✅")
+    else:
+        log.error(f"Failed to update {secret_name}: {put_resp.status_code}")
+    return success
+
+
+def update_streamlit_secret(secret_name: str, secret_value: str) -> bool:
+    """
+    Update a Streamlit Cloud secret via the Streamlit API.
+    Requires STREAMLIT_APP_ID and STREAMLIT_API_TOKEN in environment.
+    """
+    app_id    = os.environ.get("STREAMLIT_APP_ID", "")
+    api_token = os.environ.get("STREAMLIT_API_TOKEN", "")
+
+    if not app_id or not api_token:
+        log.warning("STREAMLIT_APP_ID or STREAMLIT_API_TOKEN not set — skipping Streamlit update.")
+        return False
+
+    headers = {
+        "Authorization": f"Bearer {api_token}",
+        "Content-Type":  "application/json",
+    }
+    url  = f"https://api.streamlit.io/v1/apps/{app_id}/secrets"
+    resp = requests.patch(
+        url,
+        headers=headers,
+        json={"secrets": {secret_name: secret_value}},
+        timeout=15,
+    )
+    success = resp.status_code in (200, 204)
+    if success:
+        log.info(f"Streamlit secret {secret_name} updated ✅")
+    else:
+        log.warning(f"Streamlit secret update skipped ({resp.status_code}) — update manually if needed.")
+    return success
+
+
+def refresh_and_push_token() -> str:
+    """
+    Full daily refresh flow:
+    1. Generate new token via TOTP
+    2. Push UPSTOX_TOKEN + UPSTOX_TOKEN_EXPIRY to GitHub Secrets
+    3. Push to Streamlit secrets (if configured)
+    Returns the new access token.
+    """
+    log.info("="*60)
+    log.info("Daily Upstox Token Refresh")
+    log.info("="*60)
+
+    result = generate_token_via_totp()
+    token      = result["access_token"]
+    expires_at = result["expires_at"]
+
+    log.info(f"New token generated. Expires: {expires_at}")
+
+    # Push to GitHub
+    update_github_secret("UPSTOX_TOKEN",        token)
+    update_github_secret("UPSTOX_TOKEN_EXPIRY",  expires_at)
+
+    # Push to Streamlit (best effort)
+    update_streamlit_secret("UPSTOX_TOKEN",        token)
+    update_streamlit_secret("UPSTOX_TOKEN_EXPIRY",  expires_at)
+
+    log.info("Token refresh complete ✅")
+    return token
+
+
+# ── Token cache ───────────────────────────────────────────────────────────────
 
 def _save_token_cache(token_data: dict) -> None:
-    """Save token to local JSON file."""
     try:
         TOKEN_CACHE.parent.mkdir(exist_ok=True)
         with open(TOKEN_CACHE, "w") as f:
             json.dump(token_data, f, indent=2)
     except Exception as e:
-        log.warning(f"Could not save token cache: {e}")
+        log.debug(f"Token cache save failed: {e}")
 
 
-def _load_token_cache() -> dict | None:
-    """Load token from local JSON file."""
-    try:
-        if TOKEN_CACHE.exists():
-            with open(TOKEN_CACHE) as f:
-                return json.load(f)
-    except Exception:
-        pass
-    return None
-
-
-# ── GitHub Secrets updater (called by GitHub Actions) ────────────────────────
-
-def refresh_and_update_github_secret() -> None:
-    """
-    Refreshes the access token and updates UPSTOX_TOKEN + UPSTOX_TOKEN_EXPIRY
-    in GitHub repository secrets.
-
-    Called by the daily GitHub Actions cron job (.github/workflows/refresh_token.yml).
-    Requires GITHUB_TOKEN and GITHUB_REPO env vars to be set.
-    """
-    import base64
-    from nacl import encoding, public as nacl_public  # PyNaCl for secret encryption
-
-    log.info("Refreshing Upstox token for GitHub Secrets update …")
-    result = refresh_access_token()
-
-    github_token = os.environ.get("GITHUB_TOKEN", "")
-    github_repo  = os.environ.get("GITHUB_REPO", "")   # e.g. "username/repo-name"
-
-    if not github_token or not github_repo:
-        log.warning("GITHUB_TOKEN or GITHUB_REPO not set — skipping GitHub secret update.")
-        log.info(f"New access_token obtained. Update UPSTOX_TOKEN manually in Streamlit secrets.")
-        return
-
-    # Get repo public key for secret encryption
-    headers = {
-        "Authorization": f"Bearer {github_token}",
-        "Accept":        "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-    }
-    key_resp = requests.get(
-        f"https://api.github.com/repos/{github_repo}/actions/secrets/public-key",
-        headers=headers, timeout=15
-    )
-    key_resp.raise_for_status()
-    pub_key_data = key_resp.json()
-
-    def encrypt_secret(pub_key: str, secret_value: str) -> str:
-        pub_key_bytes = base64.b64decode(pub_key)
-        sealed = nacl_public.SealedBox(nacl_public.PublicKey(pub_key_bytes))
-        return base64.b64encode(sealed.encrypt(secret_value.encode())).decode()
-
-    # Update UPSTOX_TOKEN
-    for secret_name, secret_value in [
-        ("UPSTOX_TOKEN",        result["access_token"]),
-        ("UPSTOX_TOKEN_EXPIRY", result["expires_at"]),
-        ("UPSTOX_REFRESH_TOKEN", result["refresh_token"]),
-    ]:
-        encrypted = encrypt_secret(pub_key_data["key"], secret_value)
-        put_resp = requests.put(
-            f"https://api.github.com/repos/{github_repo}/actions/secrets/{secret_name}",
-            headers=headers,
-            json={"encrypted_value": encrypted, "key_id": pub_key_data["key_id"]},
-            timeout=15,
-        )
-        if put_resp.status_code in (201, 204):
-            log.info(f"GitHub secret {secret_name} updated ✅")
-        else:
-            log.error(f"Failed to update {secret_name}: {put_resp.status_code} {put_resp.text[:200]}")
-
-    log.info("GitHub Secrets update complete.")
-
-
-# ── CLI entry point (for testing / manual refresh) ───────────────────────────
+# ── CLI entry point ───────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     import sys
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
-    if len(sys.argv) > 1 and sys.argv[1] == "refresh":
+    cmd = sys.argv[1] if len(sys.argv) > 1 else "help"
+
+    if cmd == "refresh":
         # python upstox_auth.py refresh
         token = get_valid_token()
-        print(f"✅ Valid token: {token[:20]}…")
+        print(f"✅ Token: {token[:30]}…")
 
-    elif len(sys.argv) > 1 and sys.argv[1] == "github":
-        # python upstox_auth.py github  ← called by GitHub Actions
-        refresh_and_update_github_secret()
+    elif cmd == "totp":
+        # python upstox_auth.py totp   — generate fresh token via TOTP
+        result = generate_token_via_totp()
+        print(f"✅ Token: {result['access_token'][:30]}…")
+        print(f"   Expires: {result['expires_at']}")
+
+    elif cmd == "daily":
+        # python upstox_auth.py daily  — called by GitHub Actions cron
+        refresh_and_push_token()
 
     else:
         print("Usage:")
-        print("  python upstox_auth.py refresh   — get/refresh access token")
-        print("  python upstox_auth.py github    — refresh + update GitHub secrets")
+        print("  python upstox_auth.py refresh  — get/validate current token")
+        print("  python upstox_auth.py totp     — generate fresh token via TOTP")
+        print("  python upstox_auth.py daily    — full refresh + push to GitHub/Streamlit")
