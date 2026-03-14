@@ -96,8 +96,12 @@ def credentials_complete() -> bool:
 
 
 def is_connected() -> bool:
-    """True if refresh_token is present (user has completed initial OAuth)."""
-    return bool(_secret("UPSTOX_REFRESH_TOKEN"))
+    """
+    True if UPSTOX_TOKEN is present.
+    NOTE: Upstox does NOT issue a refresh_token — only an access_token valid
+    until 3:30 AM the next day. So we check for UPSTOX_TOKEN directly.
+    """
+    return bool(_secret("UPSTOX_TOKEN"))
 
 
 # ── Step 1: Build the login URL ───────────────────────────────────────────────
@@ -241,46 +245,35 @@ def refresh_access_token() -> dict:
 
 def get_valid_token() -> str:
     """
-    Returns a valid access_token, auto-refreshing if expired or within 30 min of expiry.
-    This is the main function used by portfolio.py and data_fetcher.py.
+    Returns the current UPSTOX_TOKEN.
+    Upstox does not support refresh tokens — the access_token is valid until
+    3:30 AM the next day and must be renewed via the daily GitHub Actions cron
+    (which uses TOTP auto-login) or manually updated in Streamlit secrets.
 
-    Raises ValueError if refresh fails and no valid token available.
+    Raises ValueError if token is missing.
     """
     access_token = _secret("UPSTOX_TOKEN")
-    expiry_str   = _secret("UPSTOX_TOKEN_EXPIRY")
-
-    # Check if token is still valid
-    if access_token and expiry_str:
-        try:
-            expiry = datetime.strptime(expiry_str, "%Y-%m-%dT%H:%M:%S")
-            if datetime.now() < expiry - timedelta(minutes=30):
-                return access_token  # Token is valid
-            log.info("Access token expiring soon — refreshing …")
-        except ValueError:
-            log.warning("Could not parse UPSTOX_TOKEN_EXPIRY — attempting refresh.")
-
-    # Try to load from local cache first (useful in GitHub Actions)
-    cached = _load_token_cache()
-    if cached:
-        try:
-            expiry = datetime.strptime(cached["expires_at"], "%Y-%m-%dT%H:%M:%S")
-            if datetime.now() < expiry - timedelta(minutes=30):
-                os.environ["UPSTOX_TOKEN"]        = cached["access_token"]
-                os.environ["UPSTOX_TOKEN_EXPIRY"] = cached["expires_at"]
-                log.info("Using cached token from disk.")
-                return cached["access_token"]
-        except Exception:
-            pass
-
-    # Refresh using refresh_token
-    if not _secret("UPSTOX_REFRESH_TOKEN"):
+    if not access_token:
         raise ValueError(
-            "No valid access token and no refresh token available.\n"
-            "Please complete the initial Upstox OAuth login from the dashboard."
+            "UPSTOX_TOKEN is missing or empty. "
+            "Go to Portfolio page and click 'Connect Upstox' to generate a fresh token, "
+            "then add it to Streamlit Secrets."
         )
 
-    result = refresh_access_token()
-    return result["access_token"]
+    # Warn if token is past 3:30 AM expiry
+    expiry_str = _secret("UPSTOX_TOKEN_EXPIRY")
+    if expiry_str:
+        try:
+            expiry = datetime.strptime(expiry_str, "%Y-%m-%dT%H:%M:%S")
+            if datetime.now() > expiry:
+                log.warning(
+                    "UPSTOX_TOKEN appears expired (past 3:30 AM). "
+                    "Re-authenticate from the Portfolio page to get a fresh token."
+                )
+        except ValueError:
+            pass
+
+    return access_token
 
 
 # ── Token cache (local file — used by GitHub Actions) ────────────────────────
