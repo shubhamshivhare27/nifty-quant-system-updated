@@ -2,40 +2,50 @@ name: Weekend Universe Refresh
 
 on:
   schedule:
-    # Every Saturday at 6:00 AM IST = 12:30 AM UTC
-    - cron: '30 0 * * 6'
+    - cron: '30 0 * * 6'   # Every Saturday 12:30 AM UTC = 6:00 AM IST
   workflow_dispatch:
 
 jobs:
   refresh-universe:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v5.4.0
         with:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
 
       - name: Refresh universe from Google Sheet
         env:
           GOOGLE_SHEETS_CREDENTIALS: ${{ secrets.GOOGLE_SHEETS_CREDENTIALS }}
-        run: python -c "from src.universe_loader import run; run()"
+        run: |
+          python -c "
+          import sys
+          sys.path.insert(0, '.')
+          from src.universe_loader import run
+          result = run()
+          print(f'Stocks: {result[\"stock_count\"]}  |  ETFs: {result[\"etf_count\"]}')
+          "
 
       - name: Commit updated universe CSVs
         run: |
           git config --global user.name  "Nifty Signal Bot"
           git config --global user.email "bot@nifty-signals.local"
-          git add data/stock_universe.csv data/etf_universe.csv data/universe_changes.csv
+          git add data/stock_universe.csv data/etf_universe.csv data/universe_changes.csv || true
           git diff --cached --quiet || git commit -m "🔄 Universe refresh — $(date +'%Y-%m-%d')"
-          git push
+          git push || true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
