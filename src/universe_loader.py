@@ -165,10 +165,11 @@ def fetch_stock_universe() -> pd.DataFrame | None:
 
 def fetch_etf_universe() -> pd.DataFrame | None:
     """
-    Read ETFs from Stock Summary sheet — column A (name) and G (NSE Ticker)
-    rows 10 to 22 only. Falls back to Strategy 5 master list if fetch fails.
+    Read ETFs from Stock Summary sheet — column A (name) and G (NSE Ticker).
+    Reads ALL rows from row 10 downward until empty — no hardcoded row limit.
+    Falls back to Strategy 5 master list if fetch fails.
     """
-    log.info(f"Fetching ETF list from '{WORKSHEET_ETFS}' rows 10-22 ...")
+    log.info(f"Fetching ETF list from '{WORKSHEET_ETFS}' (row 10 onwards, no row limit) ...")
     try:
         import gspread
         from google.oauth2.service_account import Credentials
@@ -197,26 +198,43 @@ def fetch_etf_universe() -> pd.DataFrame | None:
         sh = gc.open_by_key(SHEET_ID)
         ws = sh.worksheet(WORKSHEET_ETFS)
 
-        # Read rows 10-22, columns A (1) and G (7)
-        names   = ws.col_values(1)[9:22]   # col A, rows 10-22 (0-indexed: 9-21)
-        tickers = ws.col_values(7)[9:22]   # col G, rows 10-22
+        # Read ALL values from col A and col G starting at row 10
+        # No hardcoded upper limit — picks up any new ETFs added below row 22
+        names   = ws.col_values(1)    # col A — all rows
+        tickers = ws.col_values(7)    # col G — all rows
+
+        # Pad shorter list to match length
+        max_len = max(len(names), len(tickers))
+        names   = names   + [""] * (max_len - len(names))
+        tickers = tickers + [""] * (max_len - len(tickers))
+
+        # Start from row 10 (index 9) — skip header rows above
+        HEADER_SKIP = 9
+        names   = names[HEADER_SKIP:]
+        tickers = tickers[HEADER_SKIP:]
+
+        # Skip known header/label rows
+        SKIP_VALUES = {"", "nan", "none", "nse ticker", "ticker", "symbol",
+                       "ticker symbols", "company name", "name"}
 
         rows = []
         for name, ticker in zip(names, tickers):
             name   = str(name).strip()
-            ticker = str(ticker).strip()
-            if name and ticker and ticker.lower() not in ("", "nan", "none", "nse ticker"):
+            ticker = str(ticker).strip().upper()
+            if (name and ticker and
+                name.lower()   not in SKIP_VALUES and
+                ticker.lower() not in SKIP_VALUES):
                 rows.append({
-                    "Company Name":  name,
+                    "Company Name":   name,
                     "Ticker symbols": ticker,
-                    "Category":      "ETF",
-                    "_source":       "google_sheet",
+                    "Category":       "ETF",
+                    "_source":        "google_sheet",
                 })
 
         if rows:
             df = pd.DataFrame(rows)
-            log.info(f"ETFs loaded from sheet: {len(df)} rows")
-            log.info(f"  {list(zip(df['Company Name'], df['Ticker symbols']))}")
+            log.info(f"ETFs loaded from sheet: {len(df)} ETFs")
+            log.info(f"  Tickers: {list(df['Ticker symbols'])}")
             return df
         else:
             log.warning("No ETF rows found in sheet — using master list.")
