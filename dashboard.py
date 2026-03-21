@@ -34,7 +34,9 @@ log = logging.getLogger("dashboard")
 try:
     for _key in ["GOOGLE_SHEETS_CREDENTIALS", "UPSTOX_TOKEN", "UPSTOX_API_KEY",
                  "UPSTOX_API_SECRET", "UPSTOX_REDIRECT_URI", "UPSTOX_REFRESH_TOKEN",
-                 "UPSTOX_TOKEN_EXPIRY", "GMAIL_USER", "GMAIL_PASS", "RECIPIENT_EMAIL"]:
+                 "UPSTOX_TOKEN_EXPIRY", "UPSTOX_USERNAME", "UPSTOX_PASSWORD",
+                 "UPSTOX_PIN", "UPSTOX_TOTP_SECRET",
+                 "GMAIL_USER", "GMAIL_PASS", "RECIPIENT_EMAIL"]:
         if _key in st.secrets and _key not in os.environ:
             os.environ[_key] = str(st.secrets[_key])
 except Exception:
