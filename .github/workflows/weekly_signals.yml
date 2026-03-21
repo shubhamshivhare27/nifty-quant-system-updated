@@ -2,53 +2,87 @@ name: Weekly Signal Run
 
 on:
   schedule:
-    # Every Friday at 3:30 PM UTC = 9:00 PM IST
-    - cron: '30 15 * * 5'
-  workflow_dispatch:    # allows manual trigger from GitHub UI
+    - cron: '30 15 * * 5'   # Every Friday 3:30 PM UTC = 9:00 PM IST
+  workflow_dispatch:         # Manual trigger from GitHub UI
 
 jobs:
   run-weekly-signals:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v5.4.0
         with:
           python-version: '3.11'
 
       - name: Cache pip dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v4.2.0
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
           restore-keys: ${{ runner.os }}-pip-
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Verify imports
+        run: |
+          python -c "
+          import sys
+          sys.path.insert(0, '.')
+          errors = []
+          modules = [
+              ('src.universe_loader', 'run'),
+              ('src.signal_engine',   'SignalEngine'),
+              ('src.email_report',    'send_weekly_report'),
+              ('src.portfolio',       'get_portfolio_tickers'),
+          ]
+          for mod, attr in modules:
+              try:
+                  m = __import__(mod, fromlist=[attr])
+                  getattr(m, attr)
+                  print(f'  OK  {mod}.{attr}')
+              except Exception as e:
+                  errors.append(f'  ERR {mod}.{attr}: {e}')
+                  print(f'  ERR {mod}.{attr}: {e}')
+          if errors:
+              print(f'\n{len(errors)} import error(s) — fix before running pipeline.')
+              sys.exit(1)
+          print('All imports OK')
+          "
 
       - name: Run weekly signal pipeline
         env:
           UPSTOX_TOKEN:               ${{ secrets.UPSTOX_TOKEN }}
+          UPSTOX_TOKEN_EXPIRY:        ${{ secrets.UPSTOX_TOKEN_EXPIRY }}
           UPSTOX_API_KEY:             ${{ secrets.UPSTOX_API_KEY }}
+          UPSTOX_API_SECRET:          ${{ secrets.UPSTOX_API_SECRET }}
+          UPSTOX_REDIRECT_URI:        ${{ secrets.UPSTOX_REDIRECT_URI }}
           GMAIL_USER:                 ${{ secrets.GMAIL_USER }}
           GMAIL_PASS:                 ${{ secrets.GMAIL_PASS }}
           RECIPIENT_EMAIL:            ${{ secrets.RECIPIENT_EMAIL }}
           GOOGLE_SHEETS_CREDENTIALS:  ${{ secrets.GOOGLE_SHEETS_CREDENTIALS }}
-        run: python live_signals_weekly.py
+        run: |
+          python live_signals_weekly.py
+          echo "Exit code: $?"
 
       - name: Commit updated data files
+        if: always()   # commit even if signal run had warnings
         run: |
           git config --global user.name  "Nifty Signal Bot"
           git config --global user.email "bot@nifty-signals.local"
-          git add data/ signals/
+          git add data/ signals/ || true
           git diff --cached --quiet || git commit -m "🤖 Weekly signals — $(date +'%Y-%m-%d')"
-          git push
+          git push || true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
