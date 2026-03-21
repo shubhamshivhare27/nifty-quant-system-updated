@@ -1,56 +1,47 @@
-# ─────────────────────────────────────────────────────────────────────────────
-# refresh_upstox_token.yml
-# Runs daily at 07:30 IST (02:00 UTC) — before market open.
-# Uses TOTP auto-login to generate a new Upstox access token.
-# Pushes new token to GitHub Secrets + Streamlit Cloud secrets.
-# ─────────────────────────────────────────────────────────────────────────────
-
 name: Refresh Upstox Token (TOTP)
 
 on:
   schedule:
-    - cron: "0 2 * * *"      # 02:00 UTC = 07:30 IST every day
-  workflow_dispatch:          # allow manual trigger from GitHub UI
+    - cron: "0 2 * * *"    # 02:00 UTC = 07:30 IST daily
+  workflow_dispatch:        # Manual trigger from GitHub UI
 
 jobs:
   refresh-token:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v5.4.0
         with:
           python-version: "3.11"
 
       - name: Install dependencies
         run: |
+          pip install --upgrade pip
           pip install requests upstox-totp pynacl pydantic
 
       - name: Generate new token via TOTP and push to secrets
         env:
-          # Upstox login credentials
           UPSTOX_USERNAME:     ${{ secrets.UPSTOX_USERNAME }}
           UPSTOX_PASSWORD:     ${{ secrets.UPSTOX_PASSWORD }}
           UPSTOX_PIN:          ${{ secrets.UPSTOX_PIN }}
           UPSTOX_TOTP_SECRET:  ${{ secrets.UPSTOX_TOTP_SECRET }}
-          # Upstox app credentials
           UPSTOX_API_KEY:      ${{ secrets.UPSTOX_API_KEY }}
           UPSTOX_API_SECRET:   ${{ secrets.UPSTOX_API_SECRET }}
           UPSTOX_REDIRECT_URI: ${{ secrets.UPSTOX_REDIRECT_URI }}
-          # GitHub PAT for pushing updated secrets back
           GH_PAT_TOKEN:        ${{ secrets.GH_PAT_TOKEN }}
           GITHUB_REPO:         ${{ github.repository }}
-          # Streamlit API (optional — update token in Streamlit too)
           STREAMLIT_APP_ID:    ${{ secrets.STREAMLIT_APP_ID }}
           STREAMLIT_API_TOKEN: ${{ secrets.STREAMLIT_API_TOKEN }}
         run: |
-          cd $GITHUB_WORKSPACE
           python -c "
-          import sys, os, logging
+          import sys, logging
           logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
           sys.path.insert(0, '.')
           from src.upstox_auth import refresh_and_push_token
@@ -59,4 +50,4 @@ jobs:
           "
 
       - name: Confirm success
-        run: echo "✅ Upstox token refreshed and secrets updated at $(date)"
+        run: echo "Upstox token refreshed at $(date +'%Y-%m-%d %H:%M UTC')"
