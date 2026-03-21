@@ -37,8 +37,8 @@ jobs:
           UPSTOX_REDIRECT_URI: ${{ secrets.UPSTOX_REDIRECT_URI }}
           GH_PAT_TOKEN:        ${{ secrets.GH_PAT_TOKEN }}
           GITHUB_REPO:         ${{ github.repository }}
-          STREAMLIT_APP_ID:    ${{ secrets.STREAMLIT_APP_ID }}
-          STREAMLIT_API_TOKEN: ${{ secrets.STREAMLIT_API_TOKEN }}
+          # Streamlit secrets are self-refreshed by the dashboard via TOTP
+          # No Streamlit API needed
         run: |
           python -c "
           import sys, logging
