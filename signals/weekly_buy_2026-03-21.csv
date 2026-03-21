@@ -1,0 +1,2 @@
+date,ticker,strategy_id,strategy_name,signal_type,triggered_conditions,close_weekly,SSF50_weekly,SSF200_weekly,SSF250_weekly,RSI14_weekly,RSI14_MA_weekly,MACD_line_weekly,MACD_signal_weekly,variant
+2026-03-16,SCHAEFFLER.NS,S4_weekly_ssf50_breakout,Weekly SSF50 Breakout [Opt-D],BUY,price_crossed_above_SSF50_weekly | RSI14_above_RSI14_MA | MACD_line_above_signal_line | MACD_line_and_signal_both_above_zero,4186.5,3910.03,3799.83,3758.21,55.92,49.45,46.4056,10.6009,D
