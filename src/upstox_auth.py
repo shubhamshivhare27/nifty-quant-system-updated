@@ -296,33 +296,13 @@ def update_github_secret(secret_name: str, secret_value: str) -> bool:
 
 def update_streamlit_secret(secret_name: str, secret_value: str) -> bool:
     """
-    Update a Streamlit Cloud secret via the Streamlit API.
-    Requires STREAMLIT_APP_ID and STREAMLIT_API_TOKEN in environment.
+    Streamlit Community Cloud has no public API for updating secrets.
+    The dashboard instead auto-refreshes its own token via TOTP when
+    get_valid_token() detects expiry — no external update needed.
+    This function is a no-op kept for interface compatibility.
     """
-    app_id    = os.environ.get("STREAMLIT_APP_ID", "")
-    api_token = os.environ.get("STREAMLIT_API_TOKEN", "")
-
-    if not app_id or not api_token:
-        log.warning("STREAMLIT_APP_ID or STREAMLIT_API_TOKEN not set — skipping Streamlit update.")
-        return False
-
-    headers = {
-        "Authorization": f"Bearer {api_token}",
-        "Content-Type":  "application/json",
-    }
-    url  = f"https://api.streamlit.io/v1/apps/{app_id}/secrets"
-    resp = requests.patch(
-        url,
-        headers=headers,
-        json={"secrets": {secret_name: secret_value}},
-        timeout=15,
-    )
-    success = resp.status_code in (200, 204)
-    if success:
-        log.info(f"Streamlit secret {secret_name} updated ✅")
-    else:
-        log.warning(f"Streamlit secret update skipped ({resp.status_code}) — update manually if needed.")
-    return success
+    log.debug(f"Streamlit secret update skipped for {secret_name} — dashboard self-refreshes via TOTP.")
+    return True
 
 
 def refresh_and_push_token() -> str:
@@ -347,9 +327,7 @@ def refresh_and_push_token() -> str:
     update_github_secret("UPSTOX_TOKEN",        token)
     update_github_secret("UPSTOX_TOKEN_EXPIRY",  expires_at)
 
-    # Push to Streamlit (best effort)
-    update_streamlit_secret("UPSTOX_TOKEN",        token)
-    update_streamlit_secret("UPSTOX_TOKEN_EXPIRY",  expires_at)
+    # Streamlit dashboard self-refreshes via TOTP when token expires — no push needed
 
     log.info("Token refresh complete ✅")
     return token
