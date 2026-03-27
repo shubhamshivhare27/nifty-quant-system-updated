@@ -1,0 +1,3 @@
+date,ticker,strategy_id,strategy_name,signal_type,triggered_conditions,close_weekly,SSF50_weekly,SSF200_weekly,SSF250_weekly,RSI14_weekly,RSI14_MA_weekly,MACD_line_weekly,MACD_signal_weekly,variant,exit_type
+2026-03-23,APOLLOHOSP.NS,S4_weekly_ssf50_breakout,Weekly SSF50 Breakout [Opt-D],BUY,price_crossed_above_SSF50_weekly | RSI14_above_RSI14_MA | MACD_line_above_signal_line | MACD_line_and_signal_both_above_zero,7580.5,7373.33,7128.51,6989.8,54.28,50.1,56.8156,22.8202,D,
+2026-03-23,MON100.NS,S5_weekly_etf_breakout,Weekly ETF Breakout [Mod-1],BUY,price_crossed_above_SSF50_weekly | RSI14_above_RSI14_MA,236.18,233.06,,,60.64,56.5,,,Modified-1,MANUAL
