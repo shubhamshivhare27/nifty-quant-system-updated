@@ -1,0 +1,4 @@
+date,ticker,strategy_id,strategy_name,signal_type,triggered_conditions,close_weekly,SSF50_weekly,RSI14_weekly,RSI14_MA_weekly,variant,exit_type
+2026-04-13,JUNIORBEES.NS,S5_weekly_etf_breakout,Weekly ETF Breakout [Mod-1],BUY,price_crossed_above_SSF50_weekly | RSI14_above_RSI14_MA,746.16,731.06,55.86,46.76,Modified-1,MANUAL
+2026-04-13,SETFNN50.NS,S5_weekly_etf_breakout,Weekly ETF Breakout [Mod-1],BUY,price_crossed_above_SSF50_weekly | RSI14_above_RSI14_MA,739.19,724.92,55.77,46.96,Modified-1,MANUAL
+2026-04-13,HDFCSML250.NS,S5_weekly_etf_breakout,Weekly ETF Breakout [Mod-1],BUY,price_crossed_above_SSF50_weekly | RSI14_above_RSI14_MA,162.8,160.86,53.13,38.99,Modified-1,MANUAL
