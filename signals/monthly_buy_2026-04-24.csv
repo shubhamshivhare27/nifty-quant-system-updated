@@ -1,0 +1,2 @@
+date,ticker,strategy_id,strategy_name,signal_type,triggered_conditions,RSI14_daily,RSI14_weekly,RSI14_monthly,EMA10_monthly,EMA20_monthly,EMA50_monthly,close_monthly,EMA10_slope_monthly,EMA20_slope_monthly
+2026-04-01,SOLARINDS.NS,S1_monthly_ema20_breakout,Monthly EMA20 Breakout,BUY,price_crossed_above_EMA20_monthly | RSI14_D_W_M_above_60 | EMA_alignment_confirmed,72.67,63.06,63.55,13503.1,12451.93,8668.6,15747.0,0.02719,0.04103
