@@ -51,3 +51,11 @@ jobs:
 
       - name: Confirm success
         run: echo "Upstox token refreshed at $(date +'%Y-%m-%d %H:%M UTC')"
+      - name: Push token to SIP Orchestrator repo
+        env:
+          UPSTOX_TOKEN:          ${{ secrets.UPSTOX_TOKEN }}
+          UPSTOX_TOKEN_EXPIRY:   ${{ secrets.UPSTOX_TOKEN_EXPIRY }}
+          ORCHESTRATOR_REPO_PAT: ${{ secrets.ORCHESTRATOR_REPO_PAT }}
+          ORCHESTRATOR_OWNER:    shubhamshivhare27
+          ORCHESTRATOR_REPO:     sip_orchestrator
+        run: python src/push_upstox_token.py
