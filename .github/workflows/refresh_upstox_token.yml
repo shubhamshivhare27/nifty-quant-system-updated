@@ -53,9 +53,25 @@ jobs:
         run: echo "Upstox token refreshed at $(date +'%Y-%m-%d %H:%M UTC')"
       - name: Push token to SIP Orchestrator repo
         env:
-          UPSTOX_TOKEN:          ${{ secrets.UPSTOX_TOKEN }}
-          UPSTOX_TOKEN_EXPIRY:   ${{ secrets.UPSTOX_TOKEN_EXPIRY }}
           ORCHESTRATOR_REPO_PAT: ${{ secrets.ORCHESTRATOR_REPO_PAT }}
           ORCHESTRATOR_OWNER:    shubhamshivhare27
           ORCHESTRATOR_REPO:     sip_orchestrator
-        run: python src/push_upstox_token.py
+        run: |
+          python -c "
+          import json, os, sys
+          sys.path.insert(0, '.')
+          cache = json.load(open('data/upstox_token.json'))
+          token = cache['access_token']
+          expiry = cache.get('expires_at', '')
+          os.environ['UPSTOX_TOKEN'] = token
+          if expiry:
+              os.environ['UPSTOX_TOKEN_EXPIRY'] = expiry
+          from src.push_upstox_token import push
+          owner = os.environ['ORCHESTRATOR_OWNER']
+          repo = os.environ['ORCHESTRATOR_REPO']
+          pat = os.environ['ORCHESTRATOR_REPO_PAT']
+          push(owner, repo, 'UPSTOX_TOKEN', token, pat)
+          if expiry:
+              push(owner, repo, 'UPSTOX_TOKEN_EXPIRY', expiry, pat)
+          print(f'Pushed fresh token (expires {expiry}) to {owner}/{repo}')
+          "
