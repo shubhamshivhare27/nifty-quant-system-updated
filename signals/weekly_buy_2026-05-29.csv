@@ -1,0 +1,4 @@
+date,ticker,strategy_id,strategy_name,signal_type,triggered_conditions,close_weekly,SSF50_weekly,RSI14_weekly,RSI14_MA_weekly,variant,exit_type
+2026-05-25,AUTOBEES.NS,S5_weekly_etf_breakout,Weekly ETF Breakout [Mod-1],BUY,price_crossed_above_SSF50_weekly | RSI14_above_RSI14_MA,276.05,273.88,52.88,47.5,Modified-1,MANUAL
+2026-05-25,QUAL30IETF.NS,S5_weekly_etf_breakout,Weekly ETF Breakout [Mod-1],BUY,price_crossed_above_SSF50_weekly | RSI14_above_RSI14_MA,21.03,20.79,52.0,40.78,Modified-1,MANUAL
+2026-05-25,MOMOMENTUM.NS,S5_weekly_etf_breakout,Weekly ETF Breakout [Mod-1],BUY,price_crossed_above_SSF50_weekly | RSI14_above_RSI14_MA,62.59,61.23,53.32,45.81,Modified-1,MANUAL
