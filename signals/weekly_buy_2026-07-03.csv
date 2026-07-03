@@ -1,0 +1,4 @@
+date,ticker,strategy_id,strategy_name,signal_type,triggered_conditions,close_weekly,SSF50_weekly,RSI14_weekly,RSI14_MA_weekly,variant,exit_type
+2026-06-29,SETFNIF50.NS,S5_weekly_etf_breakout,Weekly ETF Breakout [Mod-1],BUY,price_crossed_above_SSF50_weekly | RSI14_above_RSI14_MA,259.38,258.06,50.06,43.38,Modified-1,MANUAL
+2026-06-29,NIFTYBEES.NS,S5_weekly_etf_breakout,Weekly ETF Breakout [Mod-1],BUY,price_crossed_above_SSF50_weekly | RSI14_above_RSI14_MA,274.27,273.03,49.9,43.52,Modified-1,MANUAL
+2026-06-29,NIFTYIETF.NS,S5_weekly_etf_breakout,Weekly ETF Breakout [Mod-1],BUY,price_crossed_above_SSF50_weekly | RSI14_above_RSI14_MA,272.95,271.65,49.97,43.46,Modified-1,MANUAL
