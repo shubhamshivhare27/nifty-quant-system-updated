@@ -1,32 +1,32 @@
 Company Name,Ticker (NSE),Category,_source,Ticker symbols,_fetched_at
-NIFTY 50 ETF,NIFTY_50.NS,ETF,google_sheet,,2026-07-24 17:00:00
-NIFTY Next 50 ETF,JUNIORBEES.NS,ETF,google_sheet,,2026-07-24 17:00:00
-SBI Nifty 50 ETF,SETFNIF50.NS,ETF,google_sheet,,2026-07-24 17:00:00
-Nippon India Nifty ETF,NIFTYBEES.NS,ETF,google_sheet,,2026-07-24 17:00:00
-Motilal Oswal Nasdaq 100 ETF,MON100.NS,ETF,google_sheet,,2026-07-24 17:00:00
-Motilal Oswal S&P 500 ETF,MASP500.NS,ETF,google_sheet,,2026-07-24 17:00:00
-NIFTY Bank ETF,BANKBEES.NS,ETF,google_sheet,,2026-07-24 17:00:00
-NIFTY Auto,AUTOBEES.NS,ETF,google_sheet,,2026-07-24 17:00:00
-NiFTY Realty,NIFTY_REALTY.NS,ETF,google_sheet,,2026-07-24 17:00:00
-Nippon NIFTY Infrastructure ETF,INFRABEES.NS,ETF,google_sheet,,2026-07-24 17:00:00
-Global X Artificial Intelligence & Technology ETF,AIQ.NS,ETF,google_sheet,,2026-07-24 17:00:00
-First Trust Nasdaq Artificial Intelligence & Robotics ETF,ROBT.NS,ETF,google_sheet,,2026-07-24 17:00:00
-Global X Data Center & Digital Infrastructure ETF,DTCR.NS,ETF,google_sheet,,2026-07-24 17:00:00
-HDFC NIFTY Realty Index Fund,HDFCREALTY.NS,ETF,google_sheet,,2026-07-24 17:00:00
-SBI Nifty Next 50 ETF,SETFNN50.NS,ETF,google_sheet,,2026-07-24 17:00:00
-Nippon India ETF Nifty IT,ITBEES.NS,ETF,google_sheet,,2026-07-24 17:00:00
-Mirae Asset Nifty MidSmallcap400 Momentum Quality 100 ETF,MIDSMALL.NS,ETF,google_sheet,,2026-07-24 17:00:00
-HDFC Nifty Smallcap 250 ETF,HDFCSML250.NS,ETF,google_sheet,,2026-07-24 17:00:00
-ICICI Prudential Nifty 50 ETF,NIFTYIETF.NS,ETF,google_sheet,,2026-07-24 17:00:00
-Nippon India ETF Nifty Midcap 150,MID150BEES.NS,ETF,google_sheet,,2026-07-24 17:00:00
-ICICI Prudential Nifty200 Quality 30 ETF,QUAL30IETF.NS,ETF,google_sheet,,2026-07-24 17:00:00
-Motilal Oswal Nifty200 Momentum 30 ETF,MOMOMENTUM.NS,ETF,google_sheet,,2026-07-24 17:00:00
-Motilal Oswal Nifty India Defence ETF,MODEFENCE.NS,ETF,google_sheet,,2026-07-24 17:00:00
-Motilal Oswal S&P 500 ETF,MOUS500.NS,ETF,google_sheet,,2026-07-24 17:00:00
-ICICI Prudential Hang Seng ETF,HSET.NS,ETF,google_sheet,,2026-07-24 17:00:00
-Nippon India ETF Nifty Pharma,PHARMABEES.NS,ETF,google_sheet,,2026-07-24 17:00:00
-Nippon India ETF Nifty FMCG,FMCGBEES.NS,ETF,google_sheet,,2026-07-24 17:00:00
-Nippon India ETF Nifty PSU Bank,PSUBNKBEES.NS,ETF,google_sheet,,2026-07-24 17:00:00
-Nippon India ETF Nifty Energy,ENERGYBEES.NS,ETF,google_sheet,,2026-07-24 17:00:00
-Nippon India ETF Gold BeES,GOLDBEES.NS,ETF,google_sheet,,2026-07-24 17:00:00
-Nippon India Liquid BeES,LIQUIDBEES.NS,ETF,google_sheet,,2026-07-24 17:00:00
+NIFTY 50 ETF,NIFTY_50.NS,ETF,google_sheet,,2026-07-31 17:00:20
+NIFTY Next 50 ETF,JUNIORBEES.NS,ETF,google_sheet,,2026-07-31 17:00:20
+SBI Nifty 50 ETF,SETFNIF50.NS,ETF,google_sheet,,2026-07-31 17:00:20
+Nippon India Nifty ETF,NIFTYBEES.NS,ETF,google_sheet,,2026-07-31 17:00:20
+Motilal Oswal Nasdaq 100 ETF,MON100.NS,ETF,google_sheet,,2026-07-31 17:00:20
+Motilal Oswal S&P 500 ETF,MASP500.NS,ETF,google_sheet,,2026-07-31 17:00:20
+NIFTY Bank ETF,BANKBEES.NS,ETF,google_sheet,,2026-07-31 17:00:20
+NIFTY Auto,AUTOBEES.NS,ETF,google_sheet,,2026-07-31 17:00:20
+NiFTY Realty,NIFTY_REALTY.NS,ETF,google_sheet,,2026-07-31 17:00:20
+Nippon NIFTY Infrastructure ETF,INFRABEES.NS,ETF,google_sheet,,2026-07-31 17:00:20
+Global X Artificial Intelligence & Technology ETF,AIQ.NS,ETF,google_sheet,,2026-07-31 17:00:20
+First Trust Nasdaq Artificial Intelligence & Robotics ETF,ROBT.NS,ETF,google_sheet,,2026-07-31 17:00:20
+Global X Data Center & Digital Infrastructure ETF,DTCR.NS,ETF,google_sheet,,2026-07-31 17:00:20
+HDFC NIFTY Realty Index Fund,HDFCREALTY.NS,ETF,google_sheet,,2026-07-31 17:00:20
+SBI Nifty Next 50 ETF,SETFNN50.NS,ETF,google_sheet,,2026-07-31 17:00:20
+Nippon India ETF Nifty IT,ITBEES.NS,ETF,google_sheet,,2026-07-31 17:00:20
+Mirae Asset Nifty MidSmallcap400 Momentum Quality 100 ETF,MIDSMALL.NS,ETF,google_sheet,,2026-07-31 17:00:20
+HDFC Nifty Smallcap 250 ETF,HDFCSML250.NS,ETF,google_sheet,,2026-07-31 17:00:20
+ICICI Prudential Nifty 50 ETF,NIFTYIETF.NS,ETF,google_sheet,,2026-07-31 17:00:20
+Nippon India ETF Nifty Midcap 150,MID150BEES.NS,ETF,google_sheet,,2026-07-31 17:00:20
+ICICI Prudential Nifty200 Quality 30 ETF,QUAL30IETF.NS,ETF,google_sheet,,2026-07-31 17:00:20
+Motilal Oswal Nifty200 Momentum 30 ETF,MOMOMENTUM.NS,ETF,google_sheet,,2026-07-31 17:00:20
+Motilal Oswal Nifty India Defence ETF,MODEFENCE.NS,ETF,google_sheet,,2026-07-31 17:00:20
+Motilal Oswal S&P 500 ETF,MOUS500.NS,ETF,google_sheet,,2026-07-31 17:00:20
+ICICI Prudential Hang Seng ETF,HSET.NS,ETF,google_sheet,,2026-07-31 17:00:20
+Nippon India ETF Nifty Pharma,PHARMABEES.NS,ETF,google_sheet,,2026-07-31 17:00:20
+Nippon India ETF Nifty FMCG,FMCGBEES.NS,ETF,google_sheet,,2026-07-31 17:00:20
+Nippon India ETF Nifty PSU Bank,PSUBNKBEES.NS,ETF,google_sheet,,2026-07-31 17:00:20
+Nippon India ETF Nifty Energy,ENERGYBEES.NS,ETF,google_sheet,,2026-07-31 17:00:20
+Nippon India ETF Gold BeES,GOLDBEES.NS,ETF,google_sheet,,2026-07-31 17:00:20
+Nippon India Liquid BeES,LIQUIDBEES.NS,ETF,google_sheet,,2026-07-31 17:00:20
