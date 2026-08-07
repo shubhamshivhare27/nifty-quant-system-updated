@@ -1,0 +1,2 @@
+date,ticker,strategy_id,strategy_name,signal_type,triggered_conditions,close_weekly,SSF50_weekly,RSI14_weekly,RSI14_MA_weekly,variant,exit_type
+2026-08-03,PSUBNKBEES.NS,S5_weekly_etf_breakout,Weekly ETF Breakout [Mod-1],BUY,price_crossed_above_SSF50_weekly | RSI14_above_RSI14_MA,97.35,95.5,56.01,49.76,Modified-1,MANUAL
