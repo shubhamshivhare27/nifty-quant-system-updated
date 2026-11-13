@@ -1,0 +1,3 @@
+date,ticker,strategy_id,strategy_name,signal_type,triggered_conditions,close_weekly,SSF50_weekly,RSI14_weekly,RSI14_MA_weekly,variant,exit_type
+2026-11-09,MID150BEES.NS,S5_weekly_etf_breakout,Weekly ETF Breakout [Mod-1],BUY,price_crossed_above_SSF50_weekly | RSI14_above_RSI14_MA,234.72,233.98,54.09,49.69,Modified-1,MANUAL
+2026-11-09,MOMOMENTUM.NS,S5_weekly_etf_breakout,Weekly ETF Breakout [Mod-1],BUY,price_crossed_above_SSF50_weekly | RSI14_above_RSI14_MA,62.29,61.14,54.25,46.82,Modified-1,MANUAL
